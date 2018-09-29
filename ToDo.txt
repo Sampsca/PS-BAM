@@ -1,0 +1,42 @@
+	Include % inc/dec of final file size.
+Allow zero (0) pixel frames.
+Drop sequences with no frames
+	Enforce minimum size on very small BAMs with short palettes
+	Implement offset autocorrect for various INI settings.
+	Implement offset inc/dec/set as per bamresize.
+Speed up RLE (current bottleneck)
+Speed up unused palette entries (current bottleneck)
+speed up GIF LZW compression (current bottleneck)
+
+
+	Implement CLI - including multiple input processing
+Improve Terminal Output
+	Normalize feedback classifications
+	Compile new zlib
+	Compile new zopfli
+	Implement DLL zopfli
+GUI with classifications - Mathematically lossless, visually lossless, visually lossy
+	Option to trim only from end of palette (unused and not TransColorIndex)
+	Autodetect certain settings - paletted or no, Erephine palette colors, based on Game setting, etc.
+	Thorough paletted BAM analysis:  Export palettes and ask on G3.
+
+Binary overlap engine
+	Write blank value 'throw' error
+	Write out of bounds 'throw' error
+
+Add BAM V2 support
+Add BAMU support
+Add BAMD support
+Add import frames from naming scheme
+Load Palette from another BAM/BAMC
+
+	Testing of individual/combinations of individual components.
+
+Emulate multithreading based on count of processor cores and user variable.
+	Display final table of:  Name	OriginalSize	UncompressedSize	CompressedSize	%OfOriginalSize	%OfUncompressedSize	Time
+
+	Allow Export Palette
+	Allow Export Frames
+	Allow Export Frames when frame data has been RLEd.
+	Allow SaveAs BAMD
+	Allow export frames in desired format (missing higher bit depths for BMPs)
