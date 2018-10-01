@@ -73,7 +73,7 @@ ProcessCLIArgOpt(){
 			{
 			Console.SavePath:=Settings.LogFile
 			FormatTime, TimeString, ,MMMM dd, yyyy 'at' h:mm.ss tt
-			Console.Send(""////////////////////////////////////////////////////////////`r`n// PS BAM v0.0.0.1a, Copyright (c) 2012-2018 Sam Schmitz ///`r`n////////////////////////////////////////////////////////////"`r`nInitializing logging of errors and warnings on " TimeString ".`r`n",,-1)
+			Console.Send("////////////////////////////////////////////////////////////`r`n// PS BAM v0.0.0.1a, Copyright (c) 2012-2018 Sam Schmitz ///`r`n////////////////////////////////////////////////////////////`r`nInitializing logging of errors and warnings on " TimeString ".`r`n","",-1)
 			}
 		Console.Send("//////////////////// Settings ////////////////////`r`n","-I")
 		
@@ -1972,8 +1972,8 @@ class CompressBAM extends ProcessBAM{
 		Console.Send("Paletted BAM" (IsPaletted?"":" not") " detected." "`r`n","I")
 		If IsPaletted
 			{
-			Settings.DropDuplicatePaletteEntries:=0, Settings.DropUnusedPaletteEntries:=2
-			Console.Send("The following settings will be used: --DropDuplicatePaletteEntries 0 --DropUnusedPaletteEntries 2`r`n","I")
+			Settings.DropDuplicatePaletteEntries:=0, Settings.DropUnusedPaletteEntries:=0
+			Console.Send("The following settings will be used: --DropDuplicatePaletteEntries 0 --DropUnusedPaletteEntries 0`r`n","I")
 			}
 	}
 	_IsPalettePaletted(ByRef Pal,CountOfPaletteEntriesUsed:=256,Threshold:=0){
