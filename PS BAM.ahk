@@ -14,7 +14,7 @@ SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 Process, Priority, , A
 SetBatchLines, -1
 
-
+Global PS_Version:="v0.0.0.3a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -34,7 +34,7 @@ If (Settings.MaxThreads>1)
 	Settings.LogFile:=""
 	}
 
-Global Console:=New PushLog("////////////////////////////////////////////////////////////`r`n// PS BAM v0.0.0.1a, Copyright (c) 2012-2018 Sam Schmitz ///`r`n////////////////////////////////////////////////////////////",Settings.LogFile,2)
+Global Console:=New PushLog("////////////////////////////////////////////////////////////`r`n// PS BAM " PS_Version ", Copyright (c) 2012-2018 Sam Schmitz ///`r`n////////////////////////////////////////////////////////////",Settings.LogFile,2)
 
 ;~ InPath:=A_ScriptDir "\mdr11207.bam"
 ;~ InPath:=A_ScriptDir "\CDMF4G12_orig.bam"
@@ -73,7 +73,7 @@ ProcessCLIArgOpt(){
 			{
 			Console.SavePath:=Settings.LogFile
 			FormatTime, TimeString, ,MMMM dd, yyyy 'at' h:mm.ss tt
-			Console.Send("////////////////////////////////////////////////////////////`r`n// PS BAM v0.0.0.1a, Copyright (c) 2012-2018 Sam Schmitz ///`r`n////////////////////////////////////////////////////////////`r`nInitializing logging of errors and warnings on " TimeString ".`r`n","",-1)
+			Console.Send("////////////////////////////////////////////////////////////`r`n// PS BAM " PS_Version ", Copyright (c) 2012-2018 Sam Schmitz ///`r`n////////////////////////////////////////////////////////////`r`nInitializing logging of errors and warnings on " TimeString ".`r`n","",-1)
 			}
 		Console.Send("//////////////////// Settings ////////////////////`r`n","-I")
 		
@@ -178,47 +178,75 @@ ProcessFile(Input,Output){
 		Console.DebugLevel:=Settings.DebugLevelP
 		If FileExist(Settings.ReplacePalette)
 			BAM.ReplacePalette(Settings.ReplacePalette,"","",Settings.ReplacePaletteMethod)
-		If (Settings.CompressFirst) AND !(Settings.ProcessFirst)
+		If !(Settings.OrderOfOperations)
+			Settings.OrderOfOperations:="PCE"
+		Order:=StrSplit(Settings.OrderOfOperations,"",A_Space A_Tab)
+		RLE:=Settings.IntelligentRLE, Settings.IntelligentRLE:=0
+		For Index,Char in Order
 			{
-			If (Settings.Compress)
-				BAM.CompressBAM()
-			If (Settings.ExportPalette)
-				BAM.ExportPalette(Settings.ExportPalette,Output)
-			If (Settings.ExportFrames) AND !(Settings.Compress) AND !(Settings.Save="BAMD")
-				BAM.ExportFrames(Output)
-			BAM.Process()
-			}
-		Else If !(Settings.CompressFirst) AND (Settings.ProcessFirst)
-			{
-			BAM.Process()
-			If (Settings.ExportPalette)
-				BAM.ExportPalette(Settings.ExportPalette,Output)
-			If (Settings.ExportFrames) AND !(Settings.Save="BAMD")
-				BAM.ExportFrames(Output)
-			If (Settings.Compress)
-				BAM.CompressBAM()
-			}
-		Else If (Settings.CompressFirst) AND (Settings.ProcessFirst)
-			{
-			If (Settings.Compress)
-				BAM.CompressBAM()
-			If !(Settings.Compress) OR !(Settings.ExportFrames)
+			If (Char="C")	; Compress
+				{
+				If (Settings.Compress)
+					BAM.CompressBAM()
+				}
+			Else If (Char="P")	; Process
+				{
 				BAM.Process()
-			If (Settings.ExportPalette)
-				BAM.ExportPalette(Settings.ExportPalette,Output)
-			If (Settings.ExportFrames) AND !(Settings.Compress) AND !(Settings.Save="BAMD")
-				BAM.ExportFrames(Output)
+				}
+			Else If (Char="E")	; Export
+				{
+				If (Settings.ExportPalette)
+					BAM.ExportPalette(Settings.ExportPalette,Output)
+				If (Settings.ExportFrames) AND !(Settings.Save="BAMD") AND (Settings.Save<>"GIF")
+					BAM.ExportFrames(Output)
+				}
 			}
-		Else ; !(Settings.CompressFirst) AND !(Settings.ProcessFirst)
-			{
-			If (Settings.ExportPalette)
-				BAM.ExportPalette(Settings.ExportPalette,Output)
-			If (Settings.ExportFrames) AND !(Settings.Save="BAMD")
-				BAM.ExportFrames(Output)
-			BAM.Process()
-			If (Settings.Compress)
-				BAM.CompressBAM()
-			}
+		Settings.IntelligentRLE:=RLE
+		If (Settings.Compress) AND (Settings.IntelligentRLE=1) AND (Settings.Save<>"BAMD") AND (Settings.Save<>"GIF")
+			BytesSaved:=BAM._RLE(), Console.Send(BytesSaved " bytes were saved by applying Intelligent RLE." "`r`n","I")
+		BAM._UpdateStats()
+		;~ BAM.PrintBAM()
+		;~ If (Settings.CompressFirst) AND !(Settings.ProcessFirst)
+			;~ {
+			;~ If (Settings.Compress)
+				;~ BAM.CompressBAM()
+			;~ If (Settings.ExportPalette)
+				;~ BAM.ExportPalette(Settings.ExportPalette,Output)
+			;~ If (Settings.ExportFrames) AND !(Settings.Compress) AND !(Settings.Save="BAMD")
+				;~ BAM.ExportFrames(Output)
+			;~ BAM.Process()
+			;~ }
+		;~ Else If !(Settings.CompressFirst) AND (Settings.ProcessFirst)
+			;~ {
+			;~ BAM.Process()
+			;~ If (Settings.ExportPalette)
+				;~ BAM.ExportPalette(Settings.ExportPalette,Output)
+			;~ If (Settings.ExportFrames) AND !(Settings.Save="BAMD")
+				;~ BAM.ExportFrames(Output)
+			;~ If (Settings.Compress)
+				;~ BAM.CompressBAM()
+			;~ }
+		;~ Else If (Settings.CompressFirst) AND (Settings.ProcessFirst)
+			;~ {
+			;~ If (Settings.Compress)
+				;~ BAM.CompressBAM()
+			;~ If !(Settings.Compress) OR !(Settings.ExportFrames)
+				;~ BAM.Process()
+			;~ If (Settings.ExportPalette)
+				;~ BAM.ExportPalette(Settings.ExportPalette,Output)
+			;~ If (Settings.ExportFrames) AND !(Settings.Compress) AND !(Settings.Save="BAMD")
+				;~ BAM.ExportFrames(Output)
+			;~ }
+		;~ Else ; !(Settings.CompressFirst) AND !(Settings.ProcessFirst)
+			;~ {
+			;~ If (Settings.ExportPalette)
+				;~ BAM.ExportPalette(Settings.ExportPalette,Output)
+			;~ If (Settings.ExportFrames) AND !(Settings.Save="BAMD")
+				;~ BAM.ExportFrames(Output)
+			;~ BAM.Process()
+			;~ If (Settings.Compress)
+				;~ BAM.CompressBAM()
+			;~ }
 		;~ If (Settings.ProcessFirst>0)
 			;~ BAM.Process()
 		;~ If (Settings.Compress=1) AND (Settings.CompressFirst=1)
@@ -306,7 +334,7 @@ GetOutPath(InPath){
 			FileCreateDir, %OutPath%
 		OutPath.="\" OutNameNoExt
 		}
-	Settings.OutPathSpecific:=OutPath
+	;~ Settings.OutPathSpecific:=OutPath
 	Return OutPath
 	}
 
@@ -1905,9 +1933,11 @@ class CompressBAM extends ProcessBAM{
 		If (Settings.AutodetectPalettedBAM>=1)
 			this._AutodetectPalettedBAM()
 		If (Settings.TrimFrameData=1)
+			{
 			BytesRemoved:=this._TrimFrames(), Console.Send("Trimmed " BytesRemoved " Pixels from FrameData." "`r`n","I")
-		If (Settings.ExtraTrimDepth>0) AND (Settings.ExtraTrimBuffer>=0)
-			BytesRemoved:=this._ExtraTrimFrames(), Console.Send("Trimmed " BytesRemoved " Extra Pixels from FrameData." "`r`n","I")
+			If (Settings.ExtraTrimDepth>0) AND (Settings.ExtraTrimBuffer>=0)
+				BytesRemoved:=this._ExtraTrimFrames(), Console.Send("Trimmed " BytesRemoved " Extra Pixels from FrameData." "`r`n","I")
+			}
 		If (Settings.ReduceFrameRowLT>0)
 			Reduced:=this._ReduceFrameRowCount(Settings.ReduceFrameRowLT), Console.Send("Setting " Reduced " frames to 1x1 Trans pixel because RowCount<=" Settings.ReduceFrameRowLT "`r`n","I")
 		If (Settings.ReduceFrameColumnLT>0)
@@ -1942,12 +1972,12 @@ class CompressBAM extends ProcessBAM{
 		If (Settings.DropUnusedPaletteEntries=2)
 			NumRemoved:=this._DropUnusedPaletteEntriesFromEnd(), Console.Send("Removed " NumRemoved " unused Palette Entries from end of Palette." "`r`n","I")
 		;;;;; End clean palette again ;;;;;
-		If (Settings.ExportFrames) AND (Settings.CompressFirst=1) AND !(Settings.Save="BAMD") ;AND (Settings.IntelligentRLE=1)
-			{
-			If (Settings.ProcessFirst)
-				this.Process()
-			this.ExportFrames(Settings.OutPathSpecific) ;, Settings.ExportFrames:=0
-			}
+		;~ If (Settings.ExportFrames) AND (Settings.CompressFirst=1) AND !(Settings.Save="BAMD") ;AND (Settings.IntelligentRLE=1)
+			;~ {
+			;~ If (Settings.ProcessFirst)
+				;~ this.Process()
+			;~ this.ExportFrames(Settings.OutPathSpecific) ;, Settings.ExportFrames:=0
+			;~ }
 		If (Settings.IntelligentRLE=1) AND (Settings.Save<>"BAMD") AND (Settings.Save<>"GIF")
 			BytesSaved:=this._RLE(), Console.Send(BytesSaved " bytes were saved by applying Intelligent RLE." "`r`n","I")
 		
@@ -3123,16 +3153,109 @@ class ProcessBAM extends DebugBAM{
 				}
 			}
 	}
-	_Montage(){ ; Combines frames into a single frame.  Should run "Unify" first.
+	_Composite(ByRef Frame,X,Y,W,H,ByRef Canvas,CanvasWidth,CanvasHeight,ShiftRight,ShiftDown,TransColor){
+		;MsgBox X=%X%`nY=%Y%`nW=%W%`nH=%H%`nCanvasWidth=%CanvasWidth%`nCanvasHeight=%CanvasHeight%`nShiftRight=%ShiftRight%`nShiftDown=%ShiftDown%`nTransColor=%TransColor%
+		Col:=0, ShiftRight+=X*-1, ShiftDown+=Y*-1
+		;MsgBox X=%X%`nY=%Y%`nW=%W%`nH=%H%`nCanvasWidth=%CanvasWidth%`nCanvasHeight=%CanvasHeight%`nShiftRight=%ShiftRight%`nShiftDown=%ShiftDown%`nTransColor=%TransColor%
+		For k,Px in Frame
+			{
+			;Console.Send(ShiftDown*CanvasWidth+ShiftRight+Col A_Space,"")
+			If (Px<>TransColor)	; Don't overwrite potentially real pixels with transparent
+				Canvas[ShiftDown*CanvasWidth+ShiftRight+Col]:=Px
+			Col++
+			If (Col=W)
+				{
+				Col:=0
+				ShiftDown+=1
+				}
+			}
+		;~ Console.Send("`r`n")
+	}
+	_PadFrameToDims(Frame,Width,Height){
+		InsertRight:=(Width-this.FrameEntries[Frame,"Width"])
+		InsertBottom:=(Height-this.FrameEntries[Frame,"Height"])
+		this._InsertRC(Frame,0,InsertBottom,0,InsertRight)
+		If (InsertRight>0)
+			this.FrameEntries[Frame,"Width"]:=Width
+		If (InsertBottom>0)
+			this.FrameEntries[Frame,"Height"]:=Height
+	}
+	_Montage(){ ; Combines frames into a single frame.
+		this._TrimFrames()
+		; Dimension calculations:
+		MinX:=MinY:=MinWidth:=MinHeight:=2000, MaxX:=MaxY:=MaxWidth:=MaxHeight:=0, CanvasWidth:=CanvasHeight:=1
+		For Frame,v in this.FrameEntries
+			{
+			X:=v["CenterX"], Y:=v["CenterY"], W:=v["Width"], H:=v["Height"]
+			If (Frame>0) ; AND (Y<>0)
+				Y-=80	; Warning, only for 1x2!!!
+			MinX:=(X<MinX?X:MinX), MinY:=(Y<MinY?Y:MinY), MaxX:=(X>MaxX?X:MaxX), MaxY:=(Y>MaxY?Y:MaxY), MaxWidth:=(W>MaxWidth?W:MaxWidth), MaxHeight:=(H>MaxHeight?H:MaxHeight)	; MinWidth:=(W<MinWidth?W:MinWidth), MinHeight:=(H<MinHeight?H:MinHeight), 
+			CanvasWidth:=(W+Abs(X)>CanvasWidth?W+Abs(X):CanvasWidth)
+			CanvasHeight:=(H+Abs(Y)>CanvasHeight?H+Abs(Y):CanvasHeight)
+			}
 		If (Settings.Montage="1x2")	; (rows x columns)
 			{
-			If (this.Stats.CountOfFrames=2)
+			; Create virtual canvas
+			Canvas:={}, Canvas.SetCapacity(Px:=CanvasWidth*CanvasHeight)
+			Loop, %Px%
+				Canvas[A_Index-1]:=this.Stats.TransColorIndex
+			; Determine parameters to shift actual frames onto virtual canvas
+			ShiftRight:=MaxX, ShiftDown:=MaxY
+			; Start compositing frames onto virtual canvas
+			For Frame,v in this.FrameEntries
 				{
+				X:=v["CenterX"], Y:=v["CenterY"], W:=v["Width"], H:=v["Height"], FramePointer:=v["FramePointer"]
+				If (Frame>0) ; AND (Y<>0)
+					Y-=80
+				this._Composite(this.FrameData[FramePointer],X,Y,W,H,Canvas,CanvasWidth,CanvasHeight,ShiftRight,ShiftDown,this.Stats.TransColorIndex)
+				}
+			; Attempt to trim/shift virtual canvas back down to real dimensions.  Edit:  Trimming not practical so just report it.
+			If (ShiftRight<>0) OR (ShiftDown<>0)
+				Console.Send("Montaged frames extend into negative coordinates on virtual canvas.  Compensating by shifting image right " ShiftRight "px and shifting image down by " ShiftDown "px.  BAM Frame coordinates will be correct but exported frame will be falsely offset.`r`n","W")
+				;~ MsgBox X=%X%`nY=%Y%`nW=%W%`nH=%H%`nCanvasWidth=%CanvasWidth%`nCanvasHeight=%CanvasHeight%`nShiftRight=%ShiftRight%`nShiftDown=%ShiftDown%`nTransColor=%TransColor%`nMaxX=%MaxX%`nMaxY=%MaxY%
+			; Clear all FrameData and FrameEntries
+			this.FrameData:="", this.FrameData:={}, this.FrameEntries:="", this.FrameEntries:={}, this.FrameLookupTable:="", this.FrameLookupTable:={}, this.CycleEntries:="", this.CycleEntries:={}
+			; Save composited frame back into BAM
+			this.FrameData[0]:=Canvas
+			this.FrameEntries[0,"Width"]:=CanvasWidth
+			this.FrameEntries[0,"Height"]:=CanvasHeight
+			this.FrameEntries[0,"CenterX"]:=MaxX
+			this.FrameEntries[0,"CenterY"]:=MaxY
+			this.FrameEntries[0,"FramePointer"]:=0
+			this.FrameEntries[0,"RLE"]:=0
+			this.FrameLookupTable[0]:=0
+			this.CycleEntries[0,"CountOfFrameIndices"]:=1, this.CycleEntries[0,"IndexIntoFLT"]:=0
+			; Expand dimensions to desired values if smaller
+			this._PadFrameToDims(0,128,160)
+			; If virtual canvas > real canvas, try to trim it back down to appropriate sizes! 20181012
+			; Update Stats
+			this._UpdateStats()
+			
+			/*
+			If (this.Stats.CountOfFrames=2)	; Need to InsertRC on Top and Left to remove negative offsets, then pad width to be equal.  Combine frames, then pad to 128*160.  If frames have +Offset, they appear to always be transparent so this is okay. Also, CountOfSequences may be >2.  Account for all of them.  Add Method to zero offset trans frame.
+				{
+				;this._TrimFrames()
+				this._Unify()
 				this.FrameData[0].Push(ShiftArray(this.FrameData[1])*)
 				this.FrameEntries[0,"Height"]+=this.FrameEntries[1,"Height"]
-				this.FrameData[1].RemoveAt(0,1)
+				;~ this.FrameData[1].RemoveAt(0,1)
 				this.FrameLookupTable:="", this.FrameLookupTable:={}, this.FrameLookupTable[0]:=0
+				this.CycleEntries[0,"CountOfFrameIndices"]:=1, this.CycleEntries[0,"IndexIntoFLT"]:=0
+				this.CycleEntries[1]:=""
+				; Pad Combined frame to user-friendly dimensions for INV paperdolls
+				Index:=0
+				InsertRight:=(128-this.FrameEntries[Index,"Width"])
+				InsertBottom:=(160-this.FrameEntries[Index,"Height"])
+				this._InsertRC(Index,0,InsertBottom,0,InsertRight)
+				If (InsertRight>0)
+					this.FrameEntries[Index,"Width"]:=128
+				If (InsertBottom>0)
+					this.FrameEntries[Index,"Height"]:=160
+				If (this.FrameEntries[Index,"CenterX"]<>0) OR (this.FrameEntries[Index,"CenterY"]<>0)
+					MsgBox % "CenterX=" this.FrameEntries[Index,"CenterX"] A_Tab "CenterY=" this.FrameEntries[Index,"CenterY"]
+				this._UpdateStats()
 				}
+			*/
 			}
 	}
 	_ModXOffset(Val:=""){
@@ -3268,6 +3391,14 @@ class ProcessBAM extends DebugBAM{
 }
 
 class DebugBAM{
+	PrintBAM(){
+		this.PrintStats()
+		this.PrintFrameEntries()
+		this.PrintCycleEntries()
+		this.PrintPalette()
+		this.PrintFrameLookupTable()
+		this.PrintFrameData()
+	}
 	PrintStats(){
 		Msg:="[Stats]`r`n"
 		For key,val in this.Stats
@@ -3279,7 +3410,7 @@ class DebugBAM{
 		Msg.="  " FormatStr("FrameEntry",A_Space,11,"C") FormatStr("FramePointer",A_Space,13,"C") FormatStr("Width",A_Space,8,"C") FormatStr("Height",A_Space,8,"C") FormatStr("PixelCount",A_Space,11,"C") FormatStr("CenterX",A_Space,8,"C") FormatStr("CenterY",A_Space,8,"C") FormatStr("RLE",A_Space,4,"C") RTrim(FormatStr("OffsetToFrameData",A_Space,17,"C"),A_Space) "`r`n"
 		For key,val in this.FrameEntries
 			Msg.="  " FormatStr(key,A_Space,11,"C") FormatStr(this.FrameEntries[key,"FramePointer"],A_Space,13,"C") FormatStr(this.FrameEntries[key,"Width"],A_Space,8,"C") FormatStr(this.FrameEntries[key,"Height"],A_Space,8,"C") FormatStr(this.FrameEntries[key,"Width"]*this.FrameEntries[key,"Height"],A_Space,11,"C") FormatStr(this.FrameEntries[key,"CenterX"],A_Space,8,"C") FormatStr(this.FrameEntries[key,"CenterY"],A_Space,8,"C") FormatStr(this.FrameEntries[key,"RLE"],A_Space,4,"C") RTrim(FormatStr(this.FrameEntries[key,"OffsetToFrameData"],A_Space,17,"C")) "`r`n"
-		Console.Send(Msg "`r`n")
+		Console.Send(Msg "`r`n","")
 	}
 	PrintCycleEntries(){
 		Msg:="[Cycle Entries]`r`n"
@@ -3359,7 +3490,7 @@ SetSettings(){
 	;;;;;    Global Settings   ;;;;;
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	Settings.OutPath:=A_ScriptDir "\compressed"
-	Settings.OutPathSpecific:=""
+	;~ Settings.OutPathSpecific:=""
 	Settings.DebugLevelL:=1
 	Settings.DebugLevelP:=2
 	Settings.DebugLevelS:=1
@@ -3376,8 +3507,9 @@ SetSettings(){
 	Settings.ExportPalette:=""			; | ACT | ALL | Bin | BMP | BMPV | PAL | Raw |
 	Settings.ExportFrames:=""			; | BMP | DIB | GIF | JFIF | JPE | JPEG | JPG | PNG | RLE | TIF | TIFF || BMP,8V3 | BMP,24V3 | BMP,32V5 |
 	Settings.ExportFramesAsSequences:=0
-	Settings.CompressFirst:=1
-	Settings.ProcessFirst:=0
+	;~ Settings.CompressFirst:=1
+	;~ Settings.ProcessFirst:=0
+	Settings.OrderOfOperations:="PCE"	; P = Process; C = Compress; E = Export; in any order.  e.g. | CPE | CEP | PCE | PEC | EPC | ECP |
 	Settings.SingleGIF:=0
 	Settings.ReplacePalette:=""
 	Settings.ReplacePaletteMethod:="Quant"	; | Force | Remap | Quant

@@ -35,8 +35,7 @@ Here is a full list of all possible settings, and their default values:
 --ExportPalette ""		; | ACT | ALL | Bin | BMP | BMPV | PAL | Raw |
 --ExportFrames ""		; | BMP | DIB | GIF | JFIF | JPE | JPEG | JPG | PNG | RLE | TIF | TIFF || BMP,8V3 | BMP,24V3 | BMP,32V5 |
 --ExportFramesAsSequences 0
---CompressFirst 1
---ProcessFirst 0
+--OrderOfOperations "PCE"	; P = Process; C = Compress; E = Export; in any order.  e.g. | CPE | CEP | PCE | PEC | EPC | ECP |
 --SingleGIF 0
 --ReplacePalette ""
 --ReplacePaletteMethod "Quant"	; | Force | Remap | Quant
