@@ -14,7 +14,7 @@ SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 Process, Priority, , A
 SetBatchLines, -1
 
-Global PS_Version:="v0.0.0.3a"
+Global PS_Version:="v0.0.0.4a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -3154,7 +3154,6 @@ class ProcessBAM extends DebugBAM{
 			}
 	}
 	_Composite(ByRef Frame,X,Y,W,H,ByRef Canvas,CanvasWidth,CanvasHeight,ShiftRight,ShiftDown,TransColor){
-		;MsgBox X=%X%`nY=%Y%`nW=%W%`nH=%H%`nCanvasWidth=%CanvasWidth%`nCanvasHeight=%CanvasHeight%`nShiftRight=%ShiftRight%`nShiftDown=%ShiftDown%`nTransColor=%TransColor%
 		Col:=0, ShiftRight+=X*-1, ShiftDown+=Y*-1
 		;MsgBox X=%X%`nY=%Y%`nW=%W%`nH=%H%`nCanvasWidth=%CanvasWidth%`nCanvasHeight=%CanvasHeight%`nShiftRight=%ShiftRight%`nShiftDown=%ShiftDown%`nTransColor=%TransColor%
 		For k,Px in Frame
@@ -3172,8 +3171,8 @@ class ProcessBAM extends DebugBAM{
 		;~ Console.Send("`r`n")
 	}
 	_PadFrameToDims(Frame,Width,Height){
-		InsertRight:=(Width-this.FrameEntries[Frame,"Width"])
-		InsertBottom:=(Height-this.FrameEntries[Frame,"Height"])
+		InsertRight:=(Width-this.FrameEntries[Frame,"Width"]), InsertRight:=(InsertRight<0?0:InsertRight)
+		InsertBottom:=(Height-this.FrameEntries[Frame,"Height"]), InsertBottom:=(InsertBottom<0?0:InsertBottom)
 		this._InsertRC(Frame,0,InsertBottom,0,InsertRight)
 		If (InsertRight>0)
 			this.FrameEntries[Frame,"Width"]:=Width
@@ -3212,7 +3211,8 @@ class ProcessBAM extends DebugBAM{
 			; Attempt to trim/shift virtual canvas back down to real dimensions.  Edit:  Trimming not practical so just report it.
 			If (ShiftRight<>0) OR (ShiftDown<>0)
 				Console.Send("Montaged frames extend into negative coordinates on virtual canvas.  Compensating by shifting image right " ShiftRight "px and shifting image down by " ShiftDown "px.  BAM Frame coordinates will be correct but exported frame will be falsely offset.`r`n","W")
-				;~ MsgBox X=%X%`nY=%Y%`nW=%W%`nH=%H%`nCanvasWidth=%CanvasWidth%`nCanvasHeight=%CanvasHeight%`nShiftRight=%ShiftRight%`nShiftDown=%ShiftDown%`nTransColor=%TransColor%`nMaxX=%MaxX%`nMaxY=%MaxY%
+			;~ tmp=X=%X%`nY=%Y%`nW=%W%`nH=%H%`nCanvasWidth=%CanvasWidth%`nCanvasHeight=%CanvasHeight%`nShiftRight=%ShiftRight%`nShiftDown=%ShiftDown%`nTransColor=%TransColor%`nMaxX=%MaxX%`nMaxY=%MaxY%
+			;~ Console.Send(tmp "`r`n","I")
 			; Clear all FrameData and FrameEntries
 			this.FrameData:="", this.FrameData:={}, this.FrameEntries:="", this.FrameEntries:={}, this.FrameLookupTable:="", this.FrameLookupTable:={}, this.CycleEntries:="", this.CycleEntries:={}
 			; Save composited frame back into BAM
