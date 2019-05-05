@@ -1,5 +1,5 @@
 ﻿;
-; AutoHotkey Version: 1.1.30.00
+; AutoHotkey Version: 1.1.30.03
 ; Language:       English
 ; Platform:       Optimized for Windows 10
 ; Author:         Sam.
@@ -10,11 +10,11 @@
 ; https://msdn.microsoft.com/en-us/library/dd183381.aspx
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;      PS_BMP v0.0.01a      ;;;;;
-;;;;;  Copyright (c) 2018 Sam.  ;;;;;
-;;;;;   Last Updated 20180925   ;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;             PS_BMP             ;;;;;
+;;;;;  Copyright (c) 2018-2019 Sam.  ;;;;;
+;;;;;     Last Updated 20190501      ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 /*
@@ -50,7 +50,7 @@ ExitApp
 
 class PSBMP{
 	LoadBMPFromFile(InputPath){
-		tic:=QPC(1)
+		tic:=this._QPC(1)
 		Console.Send("Loading image from '" InputPath "'`r`n","-W")
 		file:=FileOpen(InputPath,"r-d")
 			this.Stats:={}
@@ -61,13 +61,13 @@ class PSBMP{
 			file.RawRead(this.GetAddress("Raw"),this.Stats.FileSize)
 			file.Close()
 		this.DataMem:=New MemoryFileIO(this.GetAddress("Raw"),this.Stats.FileSize)
-		Console.Send("Image loaded into memory in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Image loaded into memory in " (this._QPC(1)-tic) " sec.`r`n","-I")
 		this._ReadBMP()
 		this.Raw:="", this.Delete("Raw"), this.DataMem:=""
-		Console.Send("Finished Loading image in " (QPC(1)-tic) " sec.`r`n`r`n","-I")
+		Console.Send("Finished Loading image in " (this._QPC(1)-tic) " sec.`r`n`r`n","-I")
 	}
 	SaveBMPToFile(OutputPath,BitDepth:=8,Version:=3){
-		tic:=QPC(1)
+		tic:=this._QPC(1)
 		Console.Send("Saving image to '" OutputPath "'`r`n")
 		Sz:=this._CalculateFileSize(BitDepth,Version)
 		this.Raw:=" ", this.SetCapacity("Raw",Sz), DllCall("RtlFillMemory","Ptr",this.GetAddress("Raw"),"UInt",Sz,"UChar",0)
@@ -77,10 +77,10 @@ class PSBMP{
 			file.RawWrite(this.GetAddress("Raw"),Sz)
 		file.Close()
 		this.Raw:="", this.Delete("Raw"), this.DataMem:=""
-		Console.Send("Finished Saving image in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Finished Saving image in " (this._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	LoadBMPFromMemory(Address,Size){
-		tic:=QPC(1)
+		tic:=this._QPC(1)
 		this.Stats:={}
 		;this.InputPath:=InputPath
 		this.Stats.OriginalFileSize:=Size, Console.Send("OriginalFileSize=" this.Stats.OriginalFileSize "`r`n","I")
@@ -90,19 +90,19 @@ class PSBMP{
 		tmp.RawRead(this.GetAddress("Raw"),this.Stats.FileSize)
 		tmp:=""
 		this.DataMem:=New MemoryFileIO(this.GetAddress("Raw"),this.Stats.FileSize)
-		Console.Send("Image loaded into memory in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Image loaded into memory in " (this._QPC(1)-tic) " sec.`r`n","-I")
 		this._ReadBMP()
 		this.Raw:="", this.Delete("Raw"), this.DataMem:=""
-		Console.Send("Finished Loading image in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Finished Loading image in " (this._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	SaveBMPToVar(ByRef Var,BitDepth:=8,Version:=3){
-		tic:=QPC(1)
+		tic:=this._QPC(1)
 		Sz:=this._CalculateFileSize(BitDepth,Version)
 		VarSetCapacity(Var,Sz,0)
 		this.DataMem:=New MemoryFileIO(&Var,Sz)
 		this._WriteBMP(BitDepth,Version)
 		this.DataMem:=""
-		Console.Send("Finished Saving image in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Finished Saving image in " (this._QPC(1)-tic) " sec.`r`n","-I")
 		Return Sz
 	}
 	LoadBMPFromFrameObj(ByRef FrameObj,ByRef PalObj,ByRef FrameObjUP,Width,Height){
@@ -115,7 +115,7 @@ class PSBMP{
 		this.Palette:={}
 		If (IsObject(PalObj))
 			{
-			Clone:=ObjFullyClone(PalObj)
+			Clone:=this._ObjFullyClone(PalObj)
 			While (Clone.MinIndex()>0)
 				Clone.RemoveAt(Clone.MinIndex()-1,1)
 			this.Palette:=Clone
@@ -123,7 +123,7 @@ class PSBMP{
 		this.Frame:={}
 		If (IsObject(FrameObj))
 			{
-			Clone:=ObjFullyClone(FrameObj)
+			Clone:=this._ObjFullyClone(FrameObj)
 			While (Clone.MinIndex()>0)
 				Clone.RemoveAt(Clone.MinIndex()-1,1)
 			this.Frame:=Clone
@@ -131,7 +131,7 @@ class PSBMP{
 		this.FrameUP:={}
 		If (IsObject(FrameObjUP))
 			{
-			Clone:=ObjFullyClone(FrameObjUP)
+			Clone:=this._ObjFullyClone(FrameObjUP)
 			While (Clone.MinIndex()>0)
 				Clone.RemoveAt(Clone.MinIndex()-1,1)
 			this.FrameUP:=Clone
@@ -139,11 +139,11 @@ class PSBMP{
 	}
 	GetBMPObjects(ByRef FrameObj,ByRef PalObj,ByRef FrameObjUP,ByRef Width,ByRef Height){
 		If IsObject(this.Frame)
-			FrameObj:=ObjFullyClone(this.Frame)
+			FrameObj:=this._ObjFullyClone(this.Frame)
 		If IsObject(this.Palette)
-			PalObj:=ObjFullyClone(this.Palette)
+			PalObj:=this._ObjFullyClone(this.Palette)
 		If IsObject(this.FrameUP)
-			FrameObjUP:=ObjFullyClone(this.FrameUP)
+			FrameObjUP:=this._ObjFullyClone(this.FrameUP)
 		Width:=this.BitmapHeader.Width
 		Height:=this.BitmapHeader.Height
 	}
@@ -195,7 +195,7 @@ class PSBMP{
 			}
 	}
 	_ReadBMP(){
-		tic:=QPC(1)
+		tic:=this._QPC(1)
 		this._ReadFileHeader()
 		If (this.FileHeader.FileType="BM")
 			{
@@ -207,12 +207,12 @@ class PSBMP{
 				this._ReadImage8UC()
 			Else
 				this._ReadImageGDI()	; For all others, might as well let GDI do the work.  The only format I'm aware of that this might not work optimally on is RGB101010 (for 32bit bitmaps), as we will only get back 8-bit colors.  IDK if GDI properly translates the quantum values.
-			Console.Send("BMP read in " (QPC(1)-tic) " sec.`r`n","-I")
+			Console.Send("BMP read in " (this._QPC(1)-tic) " sec.`r`n","-I")
 			}
 		Else
 			{
 			this._ReadOtherGDI()
-			Console.Send("Image read via GDIP in " (QPC(1)-tic) " sec.`r`n","-I")
+			Console.Send("Image read via GDIP in " (this._QPC(1)-tic) " sec.`r`n","-I")
 			}
 	}
 	_ReadOtherGDI(){
@@ -223,7 +223,7 @@ class PSBMP{
 		LocalShutDown:=0
 		If !pToken
 			pToken:=Gdip_Startup(), LocalShutDown:=1
-		pBitmap:=GDIPlus_pBitmapFromBuffer(this.Raw,this.Stats.FileSize,this.GetAddress("Raw"))
+		pBitmap:=this.GDIPlus_pBitmapFromBuffer(this.Raw,this.Stats.FileSize,this.GetAddress("Raw"))
 		Width:=this.BitmapHeader.Width:=Gdip_GetImageWidth(pBitmap)
 		Height:=this.BitmapHeader.Height:=Gdip_GetImageHeight(pBitmap)
 		this.Frame:={}, this.FrameUP:={}, this.FrameUP.SetCapacity(Width*Height)
@@ -247,7 +247,7 @@ class PSBMP{
 			Gdip_Shutdown(pToken)
 	}
 	_WriteBMP(BitDepth,Version){
-		tic:=QPC(1)
+		tic:=this._QPC(1)
 		If (this.FileHeader.FileType="BM") AND (BitDepth=8) AND (Version=3)
 			this._WriteFile8V3()
 		Else If (this.FileHeader.FileType="BM") AND (BitDepth=24) AND (Version=3)
@@ -255,8 +255,8 @@ class PSBMP{
 		Else If (this.FileHeader.FileType="BM") AND (BitDepth=32) AND (Version=5)
 			this._WriteFile32V5()
 		Else
-			throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "Bit Depth or BMP Version Number not supported.", extra: "BitDepth=" BitDepth A_Tab "Version=" Version}
-		Console.Send("Image written in " (QPC(1)-tic) " sec.`r`n","-I")
+			throw Exception("Bit Depth or BMP Version Number not supported.",,"BitDepth=" BitDepth A_Tab "Version=" Version "`n`n" Traceback())
+		Console.Send("Image written in " (this._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_ReadFileHeader(){
 		;;;;;	File Header Block	;;;;;
@@ -353,7 +353,7 @@ class PSBMP{
 		this.DataMem.WriteUInt(0)
 		this.DataMem.WriteInt(0)
 		this.DataMem.WriteInt(0)
-		If !GetKeyCount(this.Palette) OR !GetKeyCount(this.Frame)	;!(this.Palette.Length()) OR !(this.Frame.Length())
+		If !this.Palette.Count() OR !this.Frame.Count()	;!(this.Palette.Length()) OR !(this.Frame.Length())
 			{
 			Console.Send("Quantizing image color depth to 8-bit.  For large numbers of colors this could take a while...`r`n","I")
 			this._QuantizeImage(8)
@@ -381,7 +381,7 @@ class PSBMP{
 				{
 				Loop, % (ScanLinePadding)
 					Data.Push(0)
-				Output.InsertAt(0,ShiftArray(Data)*)
+				Output.InsertAt(0,this._ShiftArray(Data)*)
 				Index:=0, Data:="", Data:=[]
 				}
 			}
@@ -617,8 +617,11 @@ class PSBMP{
 			tmp:=this.DataMem.Tell()
 			this.BitmapHeader.CSType:=this.DataMem.ReadUInt()
 			this.DataMem.Seek(tmp,0)
-			Str:=strI(this.DataMem.Read(4))
-				Console.Send("CSType = " this.BitmapHeader.CSType " (" Str ")" "`r`n","I")
+			;Str:=strI(this.DataMem.Read(4))
+			VarSetCapacity(nStr,sLen:=strLen(str:=this.DataMem.Read(4)))
+			Loop, %sLen% ; Reverse string
+				nStr.=SubStr(str,sLen--,1)
+				Console.Send("CSType = " this.BitmapHeader.CSType " (" nStr ")" "`r`n","I")
 			this.BitmapHeader.RedX:=this.DataMem.ReadInt()
 				Console.Send("RedX = " this.BitmapHeader.RedX "`r`n","I")
 			this.BitmapHeader.RedY:=this.DataMem.ReadInt()
@@ -683,7 +686,7 @@ class PSBMP{
 		this.DataMem.Seek(this.BitmapHeader.Size+14,"0")
 		PaletteElementCount:=(this.BitmapHeader.Size=12?3:4)
 		this.Palette:={}, this.Stats.PaletteHasAlpha:=0
-		Console.Send("PaletteEntry " FormatStr("#",A_Space,3,"R") ": ","I"), Console.Send(FormatStr("BB",A_Space,3,"R") " ","-I"), Console.Send(FormatStr("GG",A_Space,3,"R") " ","-I"), Console.Send(FormatStr("RR",A_Space,3,"R") " ","-I"), Console.Send(FormatStr("AA",A_Space,3,"R") "`r`n","-I")
+		Console.Send("PaletteEntry " this._FormatStr("#",A_Space,3,"R") ": ","I"), Console.Send(this._FormatStr("BB",A_Space,3,"R") " ","-I"), Console.Send(this._FormatStr("GG",A_Space,3,"R") " ","-I"), Console.Send(this._FormatStr("RR",A_Space,3,"R") " ","-I"), Console.Send(this._FormatStr("AA",A_Space,3,"R") "`r`n","-I")
 		Loop, % PaletteLength/PaletteElementCount
 			{
 			Index:=A_Index-1
@@ -693,7 +696,7 @@ class PSBMP{
 			this.Palette[Index,"AA"]:=(PaletteElementCount=3?0:this.DataMem.ReadUChar())
 			If (this.Palette[Index,"AA"]>0) AND (this.Palette[Index,"AA"]<>"")
 				this.Stats.PaletteHasAlpha:=1
-			Console.Send("PaletteEntry " FormatStr(Index,A_Space,3,"R") ": ","I"), Console.Send(FormatStr(this.Palette[Index,"BB"],A_Space,3,"R") " ","-I"), Console.Send(FormatStr(this.Palette[Index,"GG"],A_Space,3,"R") " ","-I"), Console.Send(FormatStr(this.Palette[Index,"RR"],A_Space,3,"R") " ","-I"), Console.Send(FormatStr(this.Palette[Index,"AA"],A_Space,3,"R") "`r`n","-I")
+			Console.Send("PaletteEntry " this._FormatStr(Index,A_Space,3,"R") ": ","I"), Console.Send(this._FormatStr(this.Palette[Index,"BB"],A_Space,3,"R") " ","-I"), Console.Send(this._FormatStr(this.Palette[Index,"GG"],A_Space,3,"R") " ","-I"), Console.Send(this._FormatStr(this.Palette[Index,"RR"],A_Space,3,"R") " ","-I"), Console.Send(this._FormatStr(this.Palette[Index,"AA"],A_Space,3,"R") "`r`n","-I")
 			}
 		Console.Send("PaletteHasAlpha = " this.Stats.PaletteHasAlpha "`r`n","I")
 	}
@@ -735,7 +738,7 @@ class PSBMP{
 		this.Frame:={}, this.FrameUP:={}, this.FrameUP.SetCapacity(Width*Height)
 		If !pToken
 			pToken:=Gdip_Startup(), LocalShutDown:=1
-		pBitmap:=GDIPlus_pBitmapFromBuffer(this.Raw,this.Stats.FileSize,this.GetAddress("Raw"))
+		pBitmap:=this.GDIPlus_pBitmapFromBuffer(this.Raw,this.Stats.FileSize,this.GetAddress("Raw"))
 		Index:=A:=R:=G:=B:=0
 		Loop, % Abs(Height)
 			{
@@ -775,9 +778,9 @@ class PSBMP{
 			Return this.Stats.FileSize
 	}
 	_QuantizeImage(BitDepth){
-		tic:=QPC(1)
+		tic:=this._QPC(1)
 		CountOfPaletteEntries:=1<<BitDepth
-		If (GetKeyCount(this.FrameUP))	; If we have un-paletted data
+		If this.FrameUP.Count()	; If we have un-paletted data
 			{
 			Quant:=New PS_Quantization()
 			If (this.Palette[0,"RR"]=0) AND (this.Palette[0,"GG"]=255) AND (this.Palette[0,"BB"]=0) AND (this.Palette[0,"AA"]=0)
@@ -801,9 +804,9 @@ class PSBMP{
 				}
 			Console.Send("Total Error: " Quant.GetTotalError() "`r`n","I")
 			Quant:=""
-			Console.Send("Image quantized in " (QPC(1)-tic) " sec.`r`n","-I")
+			Console.Send("Image quantized in " (this._QPC(1)-tic) " sec.`r`n","-I")
 			}
-		Else If (GetKeyCount(this.Frame))	; If all we have is paletted data
+		Else If this.Frame.Count()	; If all we have is paletted data
 			{
 			Quant:=New PS_Quantization()
 			For k,v in this.Frame
@@ -824,12 +827,10 @@ class PSBMP{
 			this.Palette:="", this.Palette:=PalObj
 			Console.Send("Total Error: " Quant.GetTotalError() "`r`n","I")
 			Quant:=""
-			Console.Send("Image quantized in " (QPC(1)-tic) " sec.`r`n","-I")
+			Console.Send("Image quantized in " (this._QPC(1)-tic) " sec.`r`n","-I")
 			}
 		Else
-			throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "Bitmap has no data to quantize.", extra: ""}
-		
-		
+			throw Exception("Bitmap has no data to quantize.",,"`n`n" Traceback())
 	}
 	_Flip(ByRef FrameObj,Width,Height){	; Width (in bytes) should include any scanline padding if present
 		NewFrameobj:={}, Origin:=FrameObj.MinIndex(), NewFrameObj.SetCapacity(FrameObj.MaxIndex()-Origin+1)
@@ -842,90 +843,50 @@ class PSBMP{
 			}
 		Return NewFrameObj
 	}
+	;;;;; Helper Functions ;;;;;
+	_QPC(R:=0){ ; By SKAN, http://goo.gl/nf7O4G, CD:01/Sep/2014 | MD:01/Sep/2014
+	  Static P:=0, F:=0, Q:=DllCall("QueryPerformanceFrequency","Int64P",F)
+	  Return !DllCall("QueryPerformanceCounter","Int64P",Q)+(R?(P:=Q)/F:(Q-P)/F) 
+	}
+	_ObjFullyClone(obj){	; https://autohotkey.com/board/topic/103411-cloned-object-modifying-original-instantiation/?p=638500
+		nobj:=ObjClone(obj)
+		For k,v in nobj
+			If IsObject(v)
+				nobj[k]:=this._ObjFullyClone(v)
+		Return nobj
+	}
+	_ShiftArray(Arr){  ; Converts a <1-based linear array to 1-based
+		While Arr.MinIndex()<1
+			I:=Arr.MinIndex(), Arr.InsertAt(I,""), Arr.Delete(I)
+		Return Arr
+	}
+	_FormatStr(String:="",Filler:="",Length:=0,Justify:="R"){
+		tmp:=""
+		Loop, % Length
+			tmp.=Filler
+		If (Justify="R")
+			Return SubStr(tmp String,(Length-1)*-1)
+		Else If (Justify="C")
+			Return (StrLen(String)>=Length?SubStr(String tmp,1,Length):SubStr(SubStr(tmp,1,(Length-StrLen(String))//2) String tmp,1,Length))
+		Else ;If (Justify="L")
+			Return SubStr(String tmp,1,Length)
+	}
+
+	;;;;;	Gdip	;;;;;
+	GDIPlus_pBitmapFromBuffer(ByRef Buffer,nSize,BufferAddress:="") {
+	 pStream:=pBitmap:=""
+	 hData:=DllCall("GlobalAlloc",UInt,2,UInt,nSize), pData:=DllCall("GlobalLock",UInt,hData)
+	 DllCall("RtlMoveMemory",UInt,pData,UInt,(BufferAddress?BufferAddress:&Buffer),UInt,nSize)
+	 DllCall("GlobalUnlock",UInt,hData)
+	 DllCall("ole32\CreateStreamOnHGlobal",UInt,hData,Int,True,UIntP,pStream)
+	 DllCall("gdiplus\GdipCreateBitmapFromStream",UInt,pStream,UIntP,pBitmap)
+	 DllCall(NumGet(NumGet(1*pStream)+8),UInt,pStream) ; IStream::Release
+	Return pBitmap
+	}
 }
 
-
-/*
-strI(str){ ; https://github.com/Masonjar13/AHK-Library/blob/master/Lib/strI.ahk
-    VarSetCapacity(nStr,sLen:=strLen(str))
-    Loop, %sLen%
-        nStr.=SubStr(str,sLen--,1)
-    Return nStr
-}
-
-;;;;; Core Background Functions ;;;;;
-
-ThrowMsg(Options="",Title="",Text="",Timeout=""){
-	If (Title="") AND (Text="") AND (Timeout=""){
-		Gui +OwnDialogs
-		MsgBox % Options
-		}
-	Else{
-		Gui +OwnDialogs
-		MsgBox, % Options , % Title , % Text , % Timeout
-		}
-}
-
-QPC(R:=0){ ; By SKAN, http://goo.gl/nf7O4G, CD:01/Sep/2014 | MD:01/Sep/2014
-  Static P:=0, F:=0, Q:=DllCall("QueryPerformanceFrequency","Int64P",F)
-  Return !DllCall("QueryPerformanceCounter","Int64P",Q)+(R?(P:=Q)/F:(Q-P)/F) 
-}
-
-FormatStr(String:="",Filler:="",Length:=0,Justify:="R"){
-	tmp:=""
-	Loop, % Length
-		tmp.=Filler
-	If (Justify="R")
-		Return SubStr(tmp String,(Length-1)*-1)
-	Else If (Justify="C")
-		Return (StrLen(String)>=Length?SubStr(String tmp,1,Length):SubStr(SubStr(tmp,1,(Length-StrLen(String))//2) String tmp,1,Length))
-	Else ;If (Justify="L")
-		Return SubStr(String tmp,1,Length)
-}
-
-st_printArr(array, depth=5, indentLevel=""){
-	list:=""
-   for k,v in Array
-   {
-      list.= indentLevel "[" k "]"
-      if (IsObject(v) && depth>1)
-         list.="`r`n" st_printArr(v, depth-1, indentLevel . "    ")
-      Else
-         list.=" => " v
-      list.="`r`n"
-   }
-   return rtrim(list)
-}
-
-ShiftArray(Arr){  ; Converts a <1-based linear array to 1-based
-	While Arr.MinIndex()<1
-		I:=Arr.MinIndex(), Arr.InsertAt(I,""), Arr.Delete(I)
-	Return Arr
-}
-
-ObjFullyClone(obj){	; https://autohotkey.com/board/topic/103411-cloned-object-modifying-original-instantiation/?p=638500
-    nobj:=ObjClone(obj)
-    For k,v in nobj
-        If IsObject(v)
-            nobj[k]:=ObjFullyClone(v)
-    Return nobj
-}
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#Include <PushLog>
-#Include, lib
-#Include, MemoryFileIO_v2.1.ahk
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;	Gdip	;;;;;;;;;;;;;;;;;;;;;;;;;
-GDIPlus_pBitmapFromBuffer(ByRef Buffer,nSize,BufferAddress:="") {
- pStream:=pBitmap:=""
- hData:=DllCall("GlobalAlloc",UInt,2,UInt,nSize), pData:=DllCall("GlobalLock",UInt,hData)
- DllCall("RtlMoveMemory",UInt,pData,UInt,(BufferAddress?BufferAddress:&Buffer),UInt,nSize)
- DllCall("GlobalUnlock",UInt,hData)
- DllCall("ole32\CreateStreamOnHGlobal",UInt,hData,Int,True,UIntP,pStream)
- DllCall("gdiplus\GdipCreateBitmapFromStream",UInt,pStream,UIntP,pBitmap)
- DllCall(NumGet(NumGet(1*pStream)+8),UInt,pStream) ; IStream::Release
-Return pBitmap
-}
-*/
+#Include <PS_ExceptionHandler>	; https://github.com/Sampsca/PS_ExceptionHandler
+;#Include PushLog.ahk			; https://github.com/Sampsca/PushLog
+#Include MemoryFileIO.ahk		; https://github.com/Sampsca/MemoryFileIO
+#Include Gdip_All.ahk
+#Include PS_Quantization.ahk

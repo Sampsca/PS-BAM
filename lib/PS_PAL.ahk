@@ -1,5 +1,5 @@
 ﻿;
-; AutoHotkey Version: 1.1.30.00
+; AutoHotkey Version: 1.1.30.03
 ; Language:       English
 ; Platform:       Optimized for Windows 10
 ; Author:         Sam.
@@ -12,17 +12,17 @@
 ; http://www.adobe.com/devnet-apps/photoshop/fileformatashtml/#50577411_pgfId-1070626
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;      PS_PAL v0.0.01a      ;;;;;
-;;;;;  Copyright (c) 2018 Sam.  ;;;;;
-;;;;;   Last Updated 20180925   ;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;             PS_PAL             ;;;;;
+;;;;;  Copyright (c) 2018-2019 Sam.  ;;;;;
+;;;;;     Last Updated 20190501      ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 class PSPAL{
 	ImportPaletteFromPalObj(PalObj){
 		If IsObject(PalObj)
 			{
-			Clone:=ObjFullyClone(PalObj)
+			Clone:=this._ObjFullyClone(PalObj)
 			While (Clone.MinIndex()>0)
 				Clone.RemoveAt(Clone.MinIndex()-1,1)
 			Return (this.Palette:=Clone)
@@ -160,7 +160,7 @@ class PSPAL{
 			VarSetCapacity(Out_Data,Bytes:=26678,0)
 			ErrorLevel:=DllCall("Crypt32.dll\CryptStringToBinary","Ptr",&TD,"UInt",0,"UInt",1,"Ptr",&Out_Data,"UIntP",Bytes,"Int",0,"Int",0,"CDECL Int")
 			If !(ErrorLevel)
-				throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "ErrorLevel=" ErrorLevel A_Tab "A_LastError=" A_LastError, extra: "CryptStringToBinary Error"}
+				throw Exception("ErrorLevel=" ErrorLevel A_Tab "A_LastError=" A_LastError,,"CryptStringToBinary Error`n`n" Traceback())
 			TD:=""
 			Palette:=New MemoryFileIO(Out_Data,Bytes)
 			Palette.Seek(54,0)
@@ -187,7 +187,7 @@ class PSPAL{
 			VarSetCapacity(Out_Data,Bytes:=1082,0)
 			ErrorLevel:=DllCall("Crypt32.dll\CryptStringToBinary","Ptr",&TD,"UInt",0,"UInt",1,"Ptr",&Out_Data,"UIntP",Bytes,"Int",0,"Int",0,"CDECL Int")
 			If !(ErrorLevel)
-				throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "ErrorLevel=" ErrorLevel A_Tab "A_LastError=" A_LastError, extra: "CryptStringToBinary Error"}
+				throw Exception("ErrorLevel=" ErrorLevel A_Tab "A_LastError=" A_LastError,,"CryptStringToBinary Error`n`n" Traceback())
 			TD:=""
 			Palette:=New MemoryFileIO(Out_Data,Bytes)
 			Palette.Seek(54,0)
@@ -297,16 +297,19 @@ class PSPAL{
 		hPal:=""
 	}
 	GetPaletteObj(){
-		Return ObjFullyClone(this.Palette)
+		Return this._ObjFullyClone(this.Palette)
+	}
+	;;;;; Helper Functions ;;;;;
+	_ObjFullyClone(obj){	; https://autohotkey.com/board/topic/103411-cloned-object-modifying-original-instantiation/?p=638500
+		nobj:=ObjClone(obj)
+		For k,v in nobj
+			If IsObject(v)
+				nobj[k]:=this._ObjFullyClone(v)
+		Return nobj
 	}
 }
 
-/*
-ObjFullyClone(obj){	; https://autohotkey.com/board/topic/103411-cloned-object-modifying-original-instantiation/?p=638500
-    nobj:=ObjClone(obj)
-    For k,v in nobj
-        If IsObject(v)
-            nobj[k]:=ObjFullyClone(v)
-    Return nobj
-}
-*/
+#Include <PS_ExceptionHandler>	; https://github.com/Sampsca/PS_ExceptionHandler
+;#Include PushLog.ahk			; https://github.com/Sampsca/PushLog
+#Include MemoryFileIO.ahk		; https://github.com/Sampsca/MemoryFileIO
+#Include PS_GIF.ahk

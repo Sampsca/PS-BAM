@@ -6,7 +6,8 @@ Drop sequences with no frames
 	Implement offset inc/dec/set as per bamresize.
 Speed up RLE (current bottleneck)
 Speed up unused palette entries (current bottleneck)
-speed up GIF LZW compression (current bottleneck)
+Speed up GIF LZW compression (current bottleneck)
+Fix bug when converting large images to GIF
 
 
 	Implement CLI - including multiple input processing
@@ -26,6 +27,7 @@ Binary overlap engine
 
 Add BAM V2 support
 Add BAMU support
+Better investigate BAMU header structure
 Add BAMD support
 Add import frames from naming scheme
 Load Palette from another BAM/BAMC
@@ -40,3 +42,5 @@ Emulate multithreading based on count of processor cores and user variable.
 	Allow Export Frames when frame data has been RLEd.
 	Allow SaveAs BAMD
 	Allow export frames in desired format (missing higher bit depths for BMPs)
+
+Implement better exception handling

@@ -1,4 +1,4 @@
-﻿;
+;
 ; AutoHotkey Version: 1.1.22.04
 ; Language:       English
 ; Platform:       Optimized for Windows 7

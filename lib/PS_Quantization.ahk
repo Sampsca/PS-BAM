@@ -1,5 +1,5 @@
 ﻿;
-; AutoHotkey Version: 1.1.30.00
+; AutoHotkey Version: 1.1.30.03
 ; Language:       English
 ; Platform:       Optimized for Windows 10
 ; Author:         Sam.
@@ -10,11 +10,11 @@
 ; https://www.codeproject.com/Articles/66341/A-Simple-Yet-Quite-Powerful-Palette-Quantizer-in-C
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;  PS_Quantization v0.0.01a ;;;;;
-;;;;;  Copyright (c) 2018 Sam.  ;;;;;
-;;;;;   Last Updated 20180925   ;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;        PS_Quantization         ;;;;;
+;;;;;  Copyright (c) 2018-2019 Sam.  ;;;;;
+;;;;;     Last Updated 20190501      ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;  Note to self:  More realistic option for minimum error is to simply take most populous X colors.
 ;		Won't be theoretical minimum error, but in that direction.  Posternization is expected to be severe.
@@ -514,7 +514,7 @@ Class PS_Quantization{
 	}
 	
 	GetPaletteObj(MinCountOfPaletteEntries:=""){
-		PalObj:=ObjFullyClone(this.Boxes)
+		PalObj:=this._ObjFullyClone(this.Boxes)
 		PalObj.RemoveAt(0,1)
 		If MinCountOfPaletteEntries AND (PalObj.Count()<MinCountOfPaletteEntries)
 			{
@@ -530,39 +530,15 @@ Class PS_Quantization{
 	_FormatHash(r:=0,g:=0,b:=0,a:=0){
 		Return "#" ((r&0xFF)<<24)|((g&0xFF)<<16)|((b&0xFF)<<8)|(a&0xFF)
 	}
+	
+	_ObjFullyClone(obj){	; https://autohotkey.com/board/topic/103411-cloned-object-modifying-original-instantiation/?p=638500
+		nobj:=ObjClone(obj)
+		For k,v in nobj
+			If IsObject(v)
+				nobj[k]:=this._ObjFullyClone(v)
+		Return nobj
+	}
 }
 
-
-/*
-QPC(R:=0){ ; By SKAN, http://goo.gl/nf7O4G, CD:01/Sep/2014 | MD:01/Sep/2014
-  Static P:=0, F:=0, Q:=DllCall("QueryPerformanceFrequency","Int64P",F)
-  Return !DllCall("QueryPerformanceCounter","Int64P",Q)+(R?(P:=Q)/F:(Q-P)/F) 
-}
-
-st_printArr(array, depth=5, indentLevel=""){
-	list:=""
-   for k,v in Array
-   {
-      list.= indentLevel "[" k "]"
-      if (IsObject(v) && depth>1)
-         list.="`r`n" st_printArr(v, depth-1, indentLevel . "    ")
-      Else
-         list.=" => " v
-      list.="`r`n"
-   }
-   return rtrim(list)
-}
-
-ObjFullyClone(obj){	; https://autohotkey.com/board/topic/103411-cloned-object-modifying-original-instantiation/?p=638500
-    nobj:=ObjClone(obj)
-    For k,v in nobj
-        If IsObject(v)
-            nobj[k]:=ObjFullyClone(v)
-    Return nobj
-}
-
-#Include <PushLog>
-#Include, lib
-#Include, MemoryFileIO_v2.ahk
-#Include, quick_sort_array_no_recursion.ahk
-*/
+#Include MemoryFileIO.ahk		; https://github.com/Sampsca/MemoryFileIO
+#Include quick_sort_array_no_recursion.ahk

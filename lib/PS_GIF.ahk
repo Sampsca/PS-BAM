@@ -1,5 +1,5 @@
-﻿;
-; AutoHotkey Version: 1.1.30.00
+;
+; AutoHotkey Version: 1.1.30.03
 ; Language:       English
 ; Platform:       Optimized for Windows 10
 ; Author:         Sam.
@@ -12,15 +12,15 @@
 ; http://commandlinefanatic.com/cgi-bin/showarticle.cgi?article=art010
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;      PS_GIF v0.0.01a      ;;;;;
-;;;;;  Copyright (c) 2018 Sam.  ;;;;;
-;;;;;   Last Updated 20180926   ;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;             PS_GIF             ;;;;;
+;;;;;  Copyright (c) 2018-2019 Sam.  ;;;;;
+;;;;;     Last Updated 20190501      ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 class PSGIF extends ExGIFIO{
 	LoadGIFFromFile(InputPath){
-		tic:=QPC(1)
+		tic:=thsi._QPC(1)
 		Console.Send("Path='" InputPath "'`r`n")
 		file:=FileOpen(InputPath,"r-d")
 			this.Stats:={}
@@ -31,13 +31,13 @@ class PSGIF extends ExGIFIO{
 			file.RawRead(this.GetAddress("Raw"),this.Stats.FileSize)
 			file.Close()
 		this.DataMem:=New MemoryFileIO(this.GetAddress("Raw"),this.Stats.FileSize)
-		Console.Send("GIF loaded into memory in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("GIF loaded into memory in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
 		this._ReadGIF()
 		this.Raw:="", this.Delete("Raw"), this.DataMem:=""
-		Console.Send("Finished Loading GIF in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Finished Loading GIF in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	SaveGIFToFile(OutputPath){
-		tic:=QPC(1)
+		tic:=thsi._QPC(1)
 		Console.Send("Saving GIF to '" OutputPath "'`r`n","-W")
 		this.Raw:=" ", this.SetCapacity("Raw",this.Stats.FileSize), DllCall("RtlFillMemory","Ptr",this.GetAddress("Raw"),"UInt",this.Stats.FileSize,"UChar",0)
 		this.DataMem:=New MemoryFileIO(this.GetAddress("Raw"),this.Stats.FileSize)
@@ -46,10 +46,10 @@ class PSGIF extends ExGIFIO{
 			file.RawWrite(this.GetAddress("Raw"),this.Stats.FileSize)
 		file.Close()
 		this.Raw:="", this.Delete("Raw"), this.DataMem:=""
-		Console.Send("Finished Saving GIF in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Finished Saving GIF in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	LoadGIFFromMemory(Address,Size){
-		tic:=QPC(1)
+		tic:=thsi._QPC(1)
 		this.Stats:={}
 		;this.InputPath:=InputPath
 		this.Stats.OriginalFileSize:=Size, Console.Send("OriginalFileSize=" this.Stats.OriginalFileSize "`r`n","I")
@@ -59,22 +59,22 @@ class PSGIF extends ExGIFIO{
 		tmp.RawRead(this.GetAddress("Raw"),this.Stats.FileSize)
 		tmp:=""
 		this.DataMem:=New MemoryFileIO(this.GetAddress("Raw"),this.Stats.FileSize)
-		Console.Send("GIF loaded into memory in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("GIF loaded into memory in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
 		this._ReadGIF()
 		this.Raw:="", this.Delete("Raw"), this.DataMem:=""
-		Console.Send("Finished Loading GIF in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Finished Loading GIF in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	SaveGIFToVar(Var){
-		tic:=QPC(1)
+		tic:=thsi._QPC(1)
 		VarSetCapacity(Var,this.Stats.FileSize,0)
 		this.DataMem:=New MemoryFileIO(&Var,this.Stats.FileSize)
 		this._WriteGIF()
 		this.DataMem:=""
-		Console.Send("Finished Saving GIF in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Finished Saving GIF in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
 		Return this.Stats.FileSize
 	}
 	_ReadGIF(){
-		tic:=QPC(1)
+		tic:=thsi._QPC(1)
 		this._ReadGIFHeader()
 		this._ReadLogicalScreenDescriptor()
 		If this.LogicalScreenDescriptor.GlobalColorTableFlag
@@ -100,10 +100,10 @@ class PSGIF extends ExGIFIO{
 		If (flag=0x3B)	;;;;;	Trailer	;;;;;
 			Console.Send("EoF`r`n","-I")
 		
-		Console.Send("GIF read in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("GIF read in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_WriteGIF(){
-		tic:=QPC(1)
+		tic:=thsi._QPC(1)
 		this._WriteGIFHeader()
 		this._WriteLogicalScreenDescriptor()
 		If this.LogicalScreenDescriptor.GlobalColorTableFlag
@@ -122,7 +122,7 @@ class PSGIF extends ExGIFIO{
 				this._WriteImage(A_Index)
 		FinalSize:=this._WriteTailer()
 		this.Stats.FileSize:=FinalSize
-		Console.Send("GIF written in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("GIF written in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_ReadGIFHeader(){
 		;;;;;	Header Block	;;;;;
@@ -137,9 +137,9 @@ class PSGIF extends ExGIFIO{
 		this.Header.LengthOfHeader:=this.DataMem.Tell()-this.Header.OffsetToHeader
 			Console.Send("LengthOfHeader = " this.Header.LengthOfHeader "`r`n","I")
 		If (this.Header.Signature<>"GIF")
-			throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "This file does not appear to be a valid GIF file.", extra: "Signature """ this.Header.Signature """"}
+			throw Exception("Signature """ this.Header.Signature """" "`n`n" Traceback())
 		If (this.Header.Version<>"89a")
-			throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "This file appears to be a GIF file, but is an unsupported version.  Only version '89a' is currently supported.", extra: "Version """ this.Header.Version """"}
+			throw Exception("This file appears to be a GIF file, but is an unsupported version.  Only version '89a' is currently supported.",,"Version """ this.Header.Version """" "`n`n" Traceback())
 	}
 	_WriteGIFHeader(){
 		;this.DataMem.Seek(this.Header.OffsetToHeader,0)
@@ -158,13 +158,13 @@ class PSGIF extends ExGIFIO{
 		this.LogicalScreenDescriptor.CanvasHeight:=this.DataMem.ReadUShort()
 			Console.Send("CanvasHeight = " this.LogicalScreenDescriptor.CanvasHeight "`r`n","I")
 		tmp:=this.DataMem.ReadUChar()	; Packed Byte
-		this.LogicalScreenDescriptor.GlobalColorTableFlag:=GetBits(tmp,0,1)
+		this.LogicalScreenDescriptor.GlobalColorTableFlag:=this._GetBits(tmp,0,1)
 			Console.Send("GlobalColorTableFlag = " this.LogicalScreenDescriptor.GlobalColorTableFlag "`r`n","I")
-		this.LogicalScreenDescriptor.ColorResolution:=GetBits(tmp,1,3)
+		this.LogicalScreenDescriptor.ColorResolution:=this._GetBits(tmp,1,3)
 			Console.Send("ColorResolution = " this.LogicalScreenDescriptor.ColorResolution "`r`n","I")
-		this.LogicalScreenDescriptor.SortFlag:=GetBits(tmp,4,1)
+		this.LogicalScreenDescriptor.SortFlag:=this._GetBits(tmp,4,1)
 			Console.Send("SortFlag = " this.LogicalScreenDescriptor.SortFlag "`r`n","I")
-		this.LogicalScreenDescriptor.SizeOfGlobalColorTable:=GetBits(tmp,5,3)
+		this.LogicalScreenDescriptor.SizeOfGlobalColorTable:=this._GetBits(tmp,5,3)
 			Console.Send("SizeOfGlobalColorTable = " this.LogicalScreenDescriptor.SizeOfGlobalColorTable "`r`n","I")
 		this.LogicalScreenDescriptor.BackgroundColorIndex:=this.DataMem.ReadUChar()
 			Console.Send("BackgroundColorIndex = " this.LogicalScreenDescriptor.BackgroundColorIndex "`r`n","I")
@@ -177,7 +177,7 @@ class PSGIF extends ExGIFIO{
 		;this.DataMem.Seek(this.LogicalScreenDescriptor.OffsetToLogicalScreenDescriptor,0)
 		this.DataMem.WriteUShort(this.LogicalScreenDescriptor.CanvasWidth)
 		this.DataMem.WriteUShort(this.LogicalScreenDescriptor.CanvasHeight)
-		tmp:=PackByte(Sz:=[1,3,1,3],this.LogicalScreenDescriptor.GlobalColorTableFlag,this.LogicalScreenDescriptor.ColorResolution,this.LogicalScreenDescriptor.SortFlag,this.LogicalScreenDescriptor.SizeOfGlobalColorTable)
+		tmp:=this._PackByte(Sz:=[1,3,1,3],this.LogicalScreenDescriptor.GlobalColorTableFlag,this.LogicalScreenDescriptor.ColorResolution,this.LogicalScreenDescriptor.SortFlag,this.LogicalScreenDescriptor.SizeOfGlobalColorTable)
 		this.DataMem.WriteUChar(tmp)	; Packed Byte
 		this.DataMem.WriteUChar(this.LogicalScreenDescriptor.BackgroundColorIndex)
 		this.DataMem.WriteUChar(this.LogicalScreenDescriptor.PixelAspectRatio)
@@ -197,7 +197,7 @@ class PSGIF extends ExGIFIO{
 			this.GlobalColorTable.Palette[Idx,"BB"]:=this.DataMem.ReadUChar()
 			this.GlobalColorTable.Palette[Idx,"AA"]:=0
 			}
-		;~ Console.Send("Palette = `r`n" st_printArr(this.GlobalColorTable.Palette) "`r`n","I")
+		;~ Console.Send("Palette = `r`n" this._st_printArr(this.GlobalColorTable.Palette) "`r`n","I")
 		If (Settings.DebugLevelL>1)
 			this._PrintPalette(this.GlobalColorTable.Palette)
 		this.GlobalColorTable.LengthOfGlobalColorTable:=this.DataMem.Tell()-this.GlobalColorTable.OffsetToGlobalColorTable
@@ -207,9 +207,9 @@ class PSGIF extends ExGIFIO{
 		If !IsObject(PalObj)	; Print the BAM Palette
 			PalObj:=this.Palette
 		Msg:="[Palette]`r`n"
-		Msg.="  PaletteEntry " FormatStr("#",A_Space,3,"R") ": " FormatStr("BB",A_Space,3,"R") " " FormatStr("GG",A_Space,3,"R") " " FormatStr("RR",A_Space,3,"R") " " FormatStr("AA",A_Space,3,"R") "`r`n" "  ---------------------------------`r`n"
+		Msg.="  PaletteEntry " this._FormatStr("#",A_Space,3,"R") ": " this._FormatStr("BB",A_Space,3,"R") " " this._FormatStr("GG",A_Space,3,"R") " " this._FormatStr("RR",A_Space,3,"R") " " this._FormatStr("AA",A_Space,3,"R") "`r`n" "  ---------------------------------`r`n"
 		For key,val in PalObj
-			Msg.="  PaletteEntry " FormatStr(key,A_Space,3,"R") ": " FormatStr(PalObj[key,"BB"],A_Space,3,"R") " " FormatStr(PalObj[key,"GG"],A_Space,3,"R") " " FormatStr(PalObj[key,"RR"],A_Space,3,"R") " " FormatStr(PalObj[key,"AA"],A_Space,3,"R") "`r`n"
+			Msg.="  PaletteEntry " this._FormatStr(key,A_Space,3,"R") ": " this._FormatStr(PalObj[key,"BB"],A_Space,3,"R") " " this._FormatStr(PalObj[key,"GG"],A_Space,3,"R") " " this._FormatStr(PalObj[key,"RR"],A_Space,3,"R") " " this._FormatStr(PalObj[key,"AA"],A_Space,3,"R") "`r`n"
 		Console.Send(Msg "`r`n")
 	}
 	_WriteGlobalColorTable(){
@@ -247,7 +247,7 @@ class PSGIF extends ExGIFIO{
 		;this.DataMem.Seek(this.CommentExtension[Idx,"OffsetToCommentExtension"],0)
 		this.DataMem.WriteUChar(this.CommentExtension[Idx,"ExtensionIntroducer"])	; Always 0x21
 		this.DataMem.WriteUChar(this.CommentExtension[Idx,"ExtensionLabel"])	; Always 0xFE
-		TextArr:=String2Array(this.CommentExtension[Idx,"Text"])
+		TextArr:=this._String2Array(this.CommentExtension[Idx,"Text"])
 		this._FormatSubBlocks(TextArr,"",0)
 		For k,v in TextArr
 			this.DataMem.WriteUChar(v)
@@ -282,7 +282,7 @@ class PSGIF extends ExGIFIO{
 					Console.Send("LoopCount = " this.ApplicationExtension[Idx,"LoopCount"] "`r`n","I")
 				}
 			Else
-				throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "Unsupported SubBlock size in Application Extension.", extra: "ApplicationIdentifier """ this.ApplicationExtension[Idx,"ApplicationIdentifier"] """ & ApplicationAuthenticationCode """ this.ApplicationExtension[Idx,"ApplicationAuthenticationCode"] """."}
+				throw Exception("Unsupported SubBlock size in Application Extension.",,"ApplicationIdentifier """ this.ApplicationExtension[Idx,"ApplicationIdentifier"] """ & ApplicationAuthenticationCode """ this.ApplicationExtension[Idx,"ApplicationAuthenticationCode"] """." "`n`n" Traceback())
 			}
 		Else
 			{
@@ -292,7 +292,7 @@ class PSGIF extends ExGIFIO{
 				Loop, %SubBlockSize%
 					this.ApplicationExtension[Idx,"Data"].Push(this.DataMem.ReadUChar())
 				}
-				Console.Send("DataStream = `r`n" st_printArr(this.ApplicationExtension[Idx,"Data"]) "`r`n","I")
+				Console.Send("DataStream = `r`n" this._st_printArr(this.ApplicationExtension[Idx,"Data"]) "`r`n","I")
 			}
 		this.ApplicationExtension[Idx,"LengthOfApplicationExtension"]:=this.DataMem.Tell()-this.ApplicationExtension[Idx,"OffsetToApplicationExtension"]
 			Console.Send("LengthOfApplicationExtension = " this.ApplicationExtension[Idx,"LengthOfApplicationExtension"] "`r`n","I")
@@ -335,13 +335,13 @@ class PSGIF extends ExGIFIO{
 		GCE.BlockSize:=this.DataMem.ReadUChar()
 			Console.Send("BlockSize = " GCE.BlockSize "`r`n","I")
 		tmp:=this.DataMem.ReadUChar()	; Packed Byte
-		GCE.Reserved1:=GetBits(tmp,0,3)
+		GCE.Reserved1:=this._GetBits(tmp,0,3)
 			Console.Send("Reserved1 = " GCE.Reserved1 "`r`n","I")
-		GCE.DisposalMethod:=GetBits(tmp,3,3)
+		GCE.DisposalMethod:=this._GetBits(tmp,3,3)
 			Console.Send("DisposalMethod = " GCE.DisposalMethod "`r`n","I")
-		GCE.UserInputFlag:=GetBits(tmp,6,1)	; Probably always 0
+		GCE.UserInputFlag:=this._GetBits(tmp,6,1)	; Probably always 0
 			Console.Send("UserInputFlag = " GCE.UserInputFlag "`r`n","I")
-		GCE.TransparentColorFlag:=GetBits(tmp,7,1)
+		GCE.TransparentColorFlag:=this._GetBits(tmp,7,1)
 			Console.Send("TransparentColorFlag = " GCE.TransparentColorFlag "`r`n","I")
 		GCE.DelayTime:=this.DataMem.ReadUShort()
 			Console.Send("DelayTime = " GCE.DelayTime "`r`n","I")
@@ -358,7 +358,7 @@ class PSGIF extends ExGIFIO{
 		this.DataMem.WriteUChar(GCE.ExtensionIntroducer)	; Always 0x21
 		this.DataMem.WriteUChar(GCE.ExtensionLabel)	; Always 0xF9
 		this.DataMem.WriteUChar(GCE.BlockSize)
-		tmp:=PackByte(Sz:=[3,3,1,1],GCE.Reserved1,GCE.DisposalMethod,GCE.UserInputFlag,GCE.TransparentColorFlag)
+		tmp:=this._PackByte(Sz:=[3,3,1,1],GCE.Reserved1,GCE.DisposalMethod,GCE.UserInputFlag,GCE.TransparentColorFlag)
 		this.DataMem.WriteUChar(tmp)	; Packed Byte
 		this.DataMem.WriteUShort(GCE.DelayTime)
 		this.DataMem.WriteUChar(GCE.TransparentColorIndex)
@@ -419,7 +419,7 @@ class PSGIF extends ExGIFIO{
 		this.DataMem.WriteUChar(this.PlainTextExtension[Idx,"CharacterCellHeight"])
 		this.DataMem.WriteUChar(this.PlainTextExtension[Idx,"TextForegroundColorIndex"])
 		this.DataMem.WriteUChar(this.PlainTextExtension[Idx,"TextBackgroundColorIndex"])
-		TextArr:=String2Array(this.PlainTextExtension[Idx,"Text"])
+		TextArr:=this._String2Array(this.PlainTextExtension[Idx,"Text"])
 		this._FormatSubBlocks(TextArr,"",0)
 		For k,v in TextArr
 			this.DataMem.WriteUChar(v)
@@ -443,15 +443,15 @@ class PSGIF extends ExGIFIO{
 		this.Frame[Idx,"ImageHeight"]:=this.DataMem.ReadUShort()
 			Console.Send("ImageHeight = " this.Frame[Idx,"ImageHeight"] "`r`n","I")
 		tmp:=this.DataMem.ReadUChar()	; Packed Byte
-		this.Frame[Idx,"LocalColorTableFlag"]:=GetBits(tmp,0,1)
+		this.Frame[Idx,"LocalColorTableFlag"]:=this._GetBits(tmp,0,1)
 			Console.Send("LocalColorTableFlag = " this.Frame[Idx,"LocalColorTableFlag"] "`r`n","I")
-		this.Frame[Idx,"InterlaceFlag"]:=GetBits(tmp,1,1)
+		this.Frame[Idx,"InterlaceFlag"]:=this._GetBits(tmp,1,1)
 			Console.Send("InterlaceFlag = " this.Frame[Idx,"InterlaceFlag"] "`r`n","I")
-		this.Frame[Idx,"SortFlag"]:=GetBits(tmp,2,1)
+		this.Frame[Idx,"SortFlag"]:=this._GetBits(tmp,2,1)
 			Console.Send("SortFlag = " this.Frame[Idx,"SortFlag"] "`r`n","I")
-		this.Frame[Idx,"Reserved2"]:=GetBits(tmp,3,2)
+		this.Frame[Idx,"Reserved2"]:=this._GetBits(tmp,3,2)
 			Console.Send("Reserved2 = " this.Frame[Idx,"Reserved2"] "`r`n","I")
-		this.Frame[Idx,"SizeOfLocalColorTable"]:=GetBits(tmp,5,3)
+		this.Frame[Idx,"SizeOfLocalColorTable"]:=this._GetBits(tmp,5,3)
 			Console.Send("SizeOfLocalColorTable = " this.Frame[Idx,"SizeOfLocalColorTable"] "`r`n","I")
 		this.Frame[Idx,"LengthOfImageDescriptor"]:=this.DataMem.Tell()-this.Frame[Idx,"OffsetToImageDescriptor"]
 			Console.Send("LengthOfImageDescriptor = " this.Frame[Idx,"LengthOfImageDescriptor"] "`r`n","I")
@@ -473,7 +473,7 @@ class PSGIF extends ExGIFIO{
 				this.Frame[Idx,"Palette",Idxi,"BB"]:=this.DataMem.ReadUChar()
 				this.Frame[Idx,"Palette",Idxi,"AA"]:=0
 				}
-				;~ Console.Send("Local Palette = `r`n" st_printArr(this.Frame[Idx,"Palette"]) "`r`n","I")
+				;~ Console.Send("Local Palette = `r`n" this._st_printArr(this.Frame[Idx,"Palette"]) "`r`n","I")
 			If (Settings.DebugLevelL>1)
 				{
 				Console.Send("Local Palette = `r`n","I")
@@ -494,11 +494,11 @@ class PSGIF extends ExGIFIO{
 			Loop, %SubBlockSize%
 				tmp.Push(this.DataMem.ReadUChar())
 			}
-		;~ Console.Send("Original = `r`n" st_printArr(tmp) "`r`n","")
+		;~ Console.Send("Original = `r`n" this._st_printArr(tmp) "`r`n","")
 		this.Frame[Idx,"Data"]:=this._LZWDecompress(tmp,this.Frame[Idx,"LZWMinimumCodeSize"],this.Frame[Idx,"ImageWidth"]*this.Frame[Idx,"ImageHeight"])
 			;Console.Send("DataStream = '" Data "'`r`n","I")
 		If this.Frame[Idx,"InterlaceFlag"]
-			throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "Interlaced frames are not yet supported.", extra: ""}
+			throw Exception("Interlaced frames are not yet supported.",,"`n`n" Traceback())
 		this.Frame[Idx,"LengthOfImageData"]:=this.DataMem.Tell()-this.Frame[Idx,"OffsetToImageData"]
 			Console.Send("LengthOfImageData = " this.Frame[Idx,"LengthOfImageData"] "`r`n","I")
 	}
@@ -513,7 +513,7 @@ class PSGIF extends ExGIFIO{
 		this.DataMem.WriteUShort(this.Frame[Idx,"ImageTop"])
 		this.DataMem.WriteUShort(this.Frame[Idx,"ImageWidth"])
 		this.DataMem.WriteUShort(this.Frame[Idx,"ImageHeight"])
-		tmp:=PackByte(Sz:=[1, 1, 1, 2, 3],this.Frame[Idx,"LocalColorTableFlag"],this.Frame[Idx,"InterlaceFlag"],this.Frame[Idx,"SortFlag"],this.Frame[Idx,"Reserved2"],this.Frame[Idx,"SizeOfLocalColorTable"])
+		tmp:=this._PackByte(Sz:=[1, 1, 1, 2, 3],this.Frame[Idx,"LocalColorTableFlag"],this.Frame[Idx,"InterlaceFlag"],this.Frame[Idx,"SortFlag"],this.Frame[Idx,"Reserved2"],this.Frame[Idx,"SizeOfLocalColorTable"])
 		this.DataMem.WriteUChar(tmp)	; Packed Byte
 		;;;;;	Local Color Table	;;;;;
 		If this.Frame[Idx,"LocalColorTableFlag"]
@@ -537,7 +537,7 @@ class PSGIF extends ExGIFIO{
 		Compressed:=this._LZWCompress(Arr,this.Frame[Idx,"LZWMinimumCodeSize"])	; _LZWCompress() already forms SubBlocks and attaches LZWMinimumCodeSize Header
 		this.Frame[Idx,"LengthOfImageData"]:=Compressed.Length()
 		this.Stats.Filesize+=this.Frame[Idx,"LengthOfImageData"]
-		;~ Console.Send("Compressed = `r`n" st_printArr(Compressed) "`r`n","")
+		;~ Console.Send("Compressed = `r`n" this._st_printArr(Compressed) "`r`n","")
 		;this._FormatSubBlocks(Compressed,"",0)
 		For k,v in Compressed
 			this.DataMem.WriteUChar(v)
@@ -574,28 +574,28 @@ class PSGIF extends ExGIFIO{
 		Loop, % Cnt
 			{
 			Byte:=SubStr(BitStream,-8*A_Index+1,8)
-			ByteStream.Push(Bin2Num(Byte))
+			ByteStream.Push(this._Bin2Num(Byte))
 			}
 		this._FormatSubBlocks(ByteStream,LZWMinimumCodeSize,0)
 		Return ByteStream
 	}
 	_LZWCompress(ByRef IndexStream, LZWMinimumCodeSize){
-		tic:=QPC(1)
+		tic:=thsi._QPC(1)
 		CodeStream:={}, CodeStream.SetCapacity(IndexStream.Length()), VarSetCapacity(IndexBuffer,500,0), NewLZWMinimumCodeSize:=LZWMinimumCodeSize+1
 		; Initialize code table
 		CodeTable:=this._ClearCodeTable(LZWMinimumCodeSize)
 		; Always start by sending a clear code to the code stream.
-		CodeStream.Push(Num2Bin(CodeTable["CC"],NewLZWMinimumCodeSize))
+		CodeStream.Push(this._Num2Bin(CodeTable["CC"],NewLZWMinimumCodeSize))
 		; Read first index from index stream. This value is now the value for the index buffer
 		IndexBuffer.=K:=IndexStream.RemoveAt(1)
 		; <LOOP POINT>
 		While (IndexStream.Length())
 			{
 			; GIF format specifies a maximum code of #4095
-			If (GetKeyCount(CodeTable)=4095)
+			If (CodeTable.Count()=4095)
 				{
 				; send the clear code 
-				CodeStream.Push(Num2Bin(CodeTable["CC"],NewLZWMinimumCodeSize))
+				CodeStream.Push(this._Num2Bin(CodeTable["CC"],NewLZWMinimumCodeSize))
 				; clear out all of your old codes
 				CodeTable:=this._ClearCodeTable(LZWMinimumCodeSize)
 				NewLZWMinimumCodeSize:=LZWMinimumCodeSize+1
@@ -614,9 +614,9 @@ class PSGIF extends ExGIFIO{
 			Else	; No
 				{
 				; Add a row for index buffer + K into our code table with the next smallest code
-				CodeTable[Comb]:=Code:=GetKeyCount(CodeTable)
+				CodeTable[Comb]:=Code:=CodeTable.Count()
 				; Output the code for just the index buffer to our code steam
-				CodeStream.Push(Num2Bin(CodeTable[IndexBuffer],NewLZWMinimumCodeSize))
+				CodeStream.Push(this._Num2Bin(CodeTable[IndexBuffer],NewLZWMinimumCodeSize))
 				If (Code=2**NewLZWMinimumCodeSize)
 					NewLZWMinimumCodeSize++
 				; Index buffer is set to K
@@ -629,40 +629,40 @@ class PSGIF extends ExGIFIO{
 			}
 		; Output code for contents of index buffer
 		If (IndexBuffer<>"")
-			CodeStream.Push(Num2Bin(CodeTable[IndexBuffer],NewLZWMinimumCodeSize))
+			CodeStream.Push(this._Num2Bin(CodeTable[IndexBuffer],NewLZWMinimumCodeSize))
 		; Output end-of-information code
-		CodeStream.Push(Num2Bin(CodeTable["EoIC"],NewLZWMinimumCodeSize))
+		CodeStream.Push(this._Num2Bin(CodeTable["EoIC"],NewLZWMinimumCodeSize))
 		ByteStream:=this._PackBytes(CodeStream,LZWMinimumCodeSize)
-		Console.Send("Frame compressed in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Frame compressed in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
 		Return ByteStream
 	}
 	_LZWDecompress(ByRef ByteStream,LZWMinimumCodeSize,CountUncompressedBytes:=1){ ; CountUncompressedBytes is an optional parameter that may be used to preallocate memory.  Width*Height is a good value to use for an LZW compressed GIF frame.
-		tic:=QPC(1)
+		tic:=thsi._QPC(1)
 		; turn ByteStream into BitStream
 		VarSetCapacity(BitStream,Len:=(f8:=(f:=(A_IsUnicode?2:1))*8)*(ByteLen:=ByteStream.Length())+13*f,0)
 		Loop, % ByteLen
-			StrPut(Num2Bin(ByteStream[A_Index],8),&BitStream+(Len-A_Index*f8),8)
+			StrPut(this._Num2Bin(ByteStream[A_Index],8),&BitStream+(Len-A_Index*f8),8)
 		StrPut("0000000000000",&BitStream,13)
 		VarSetCapacity(BitStream,-1)
 		NewLZWMinimumCodeSize:=LZWMinimumCodeSize+1, BitIdx:=StrLen(BitStream)-NewLZWMinimumCodeSize+1
 		; Initialize code table
 		CodeTable:=this._ClearCodeTable(LZWMinimumCodeSize)
 		; let CODE be the first code in the code stream
-		CODE_1:=CODE:=Bin2Num(SubStr(BitStream,BitIdx,NewLZWMinimumCodeSize)), BitIdx-=NewLZWMinimumCodeSize
+		CODE_1:=CODE:=this._Bin2Num(SubStr(BitStream,BitIdx,NewLZWMinimumCodeSize)), BitIdx-=NewLZWMinimumCodeSize
 		If (CODE=CodeTable["CC"])
-			CODE_1:=CODE:=Bin2Num(SubStr(BitStream,BitIdx,NewLZWMinimumCodeSize)), BitIdx-=NewLZWMinimumCodeSize
+			CODE_1:=CODE:=this._Bin2Num(SubStr(BitStream,BitIdx,NewLZWMinimumCodeSize)), BitIdx-=NewLZWMinimumCodeSize
 		; output {CODE} to index stream
 		IndexStream:={}, IndexStream.SetCapacity(CountUncompressedBytes), IndexStream.Push(StrSplit(CodeTable[CODE],A_Space)*)
 		; <LOOP POINT>
 		While 1 ;(BitIdx>0)
 			{
 			; let CODE be the next code in the code stream
-			CODE:=Bin2Num(SubStr(BitStream,BitIdx,NewLZWMinimumCodeSize))
+			CODE:=this._Bin2Num(SubStr(BitStream,BitIdx,NewLZWMinimumCodeSize))
 			If (CODE=CodeTable["CC"])
 				{
 				CodeTable:=this._ClearCodeTable(LZWMinimumCodeSize)
 				BitIdx-=NewLZWMinimumCodeSize:=LZWMinimumCodeSize+1
-				CODE_1:=CODE:=Bin2Num(SubStr(BitStream,BitIdx,NewLZWMinimumCodeSize)), BitIdx-=NewLZWMinimumCodeSize
+				CODE_1:=CODE:=this._Bin2Num(SubStr(BitStream,BitIdx,NewLZWMinimumCodeSize)), BitIdx-=NewLZWMinimumCodeSize
 				IndexStream.Push(StrSplit(CodeTable[CODE],A_Space)*)
 				Continue
 				}
@@ -686,13 +686,13 @@ class PSGIF extends ExGIFIO{
 				IndexStream.Push(StrSplit(CodeTable[CODE_1] A_Space K,A_Space)*)
 				}
 			; add {CODE-1}+K to code table
-			CodeTable[Val:=GetKeyCount(CodeTable)]:=CodeTable[CODE_1] A_Space K
+			CodeTable[Val:=CodeTable.Count()]:=CodeTable[CODE_1] A_Space K
 			CODE_1:=CODE
 			If (Val=2**NewLZWMinimumCodeSize-1)
 				NewLZWMinimumCodeSize++
 			BitIdx-=NewLZWMinimumCodeSize
 			}
-		Console.Send("Frame decompressed in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Frame decompressed in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
 		Return IndexStream
 	}
 }
@@ -711,7 +711,7 @@ class ExGIFIO extends ImGIFIO{
 			this.ExportFrame(A_Index,OutDir "\" OutNameNoExt "_" SubStr("00000" A_Index,-4) "." Ext,Ext,DV[1],DV[2])
 	}
 	ExportFrame(Idx,OutputPath,Format:="",BitDepth:=8,Version:=3){
-		tic:=QPC(1)
+		tic:=thsi._QPC(1)
 		If !Format
 			SplitPath, OutputPath, , , Format
 		StringLower, Format, Format
@@ -751,22 +751,22 @@ class ExGIFIO extends ImGIFIO{
 			Else
 				{
 				pToken:=Gdip_Startup()
-				pBitmap_F:=GDIPlus_pBitmapFromBuffer(Raw,FinalSize)
+				pBitmap_F:=this.GDIPlus_pBitmapFromBuffer(Raw,FinalSize)
 				Error:=Gdip_SaveBitmapToFile(pBitmap_F,OutputPath)
 				If (Error<0)
-					throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "ErrorLevel=" Error A_Tab "A_LastError=" A_LastError, extra: "Error in Gdip_SaveBitmapToFile() trying to convert and save '" OutputPath "' to file."}
+					throw Exception("ErrorLevel=" Error A_Tab "A_LastError=" A_LastError,,"Error in Gdip_SaveBitmapToFile() trying to convert and save '" OutputPath "' to file.`n`n" Traceback())
 				Gdip_DisposeImage(pBitmap_F)
 				Gdip_Shutdown(pToken)
 				}
 			VarSetCapacity(Raw,0), this.DataMem:=""
 			}
-		Console.Send("Finished exporting GIF frame #" Idx " in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Finished exporting GIF frame #" Idx " in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;;;;;	Warning:  This function assumes your colors are 8-bit and number no more than 256!!		;;;;;
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	ExportPalette(Pal,Type,OutPath,CountOfPaletteEntries:="",TransColorIndex:=0){
-		tic:=QPC(1)
+		tic:=thsi._QPC(1)
 		If (this.LogicalScreenDescriptor["GlobalColorTableFlag"]) AND ((Pal="G") OR (Pal="Global"))	; Use Global Color Table if there is one
 			PalObj:=this.GlobalColorTable["Palette"]
 		Else	; Pal should be a Frame#, and whichever palette this frame uses will be exported.
@@ -785,7 +785,7 @@ class ExGIFIO extends ImGIFIO{
 		PAL:=New PSPAL()
 		PAL.ExportPalette(PalObj,Type,OutPath,CountOfPaletteEntries,TransColorIndex)
 		PAL:=""
-		Console.Send("Palette exported in " Type " format in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Palette exported in " Type " format in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_WriteGIFFrame(Idx){
 		this._WriteGIFHeader()
@@ -798,7 +798,7 @@ class ExGIFIO extends ImGIFIO{
 	}
 	GetPaletteObject(Parent:="Global",Idx:=1){	; Global | Frame
 		If IsObject(this.GlobalColorTable["Palette"]) AND ((Parent="Global") OR (Parent="G") OR (Parent="GlobalColorTable"))
-			Return ObjFullyClone(this.GlobalColorTable["Palette"])
+			Return this._ObjFullyClone(this.GlobalColorTable["Palette"])
 		Else If (Parent="Frame") OR (Parent="Local") OR (Parent="L")
 			{
 			If this.Frame[Idx,"LocalColorTableFlag"] AND IsObject(this.Frame[Idx,"Palette"])
@@ -811,13 +811,13 @@ class ExGIFIO extends ImGIFIO{
 	}
 	GetGIFObjects(Idx,ByRef FrameObj,ByRef PalObj,ByRef FrameObjUP,ByRef Width,ByRef Height,Byref CenterX,Byref CenterY){	; Idx = Index of Frame and should start at 1
 		If !IsObject(this.Frame[Idx])
-			throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "Frame# " Idx " does not exist in the GIF.", extra: "Frames range from " this.Frame.MinIndex() " to " this.Frame.MaxIndex()}
+			throw Exception("Frame# " Idx " does not exist in the GIF.",,"Frames range from " this.Frame.MinIndex() " to " this.Frame.MaxIndex() "`n`n" Traceback())
 		If IsObject(this.Frame[Idx,"Data"])
 			{
-			FrameObj:=ObjFullyClone(this.Frame[Idx,"Data"])
+			FrameObj:=this._ObjFullyClone(this.Frame[Idx,"Data"])
 			FrameObj.RemoveAt(0)	; FrameObj is defined as 0-indexed
 			}
-		PalObj:=ObjFullyClone(this.GetPaletteObject("Local",Idx))	; Try Local palette 1st, then look for Global
+		PalObj:=this._ObjFullyClone(this.GetPaletteObject("Local",Idx))	; Try Local palette 1st, then look for Global
 		FrameObjUP:="", FrameObjUP:={}
 		For k,v in FrameObj
 			{
@@ -901,7 +901,7 @@ class GIFProperties extends GIFTransform{
 		this.CommentExtension[Idx,"ExtensionLabel"]:=0xFE
 		this.CommentExtension[Idx,"Text"]:=Text
 		;;;;;
-		TextArr:=String2Array(Text)
+		TextArr:=this._String2Array(Text)
 		this._FormatSubBlocks(TextArr,"",0)
 		SubBlockSize:=TextArr.Length()
 		;;;;;
@@ -956,7 +956,7 @@ class GIFProperties extends GIFTransform{
 		this.PlainTextExtension[Idx,"TextForegroundColorIndex"]:=TextForegroundColorIndex
 		this.PlainTextExtension[Idx,"TextBackgroundColorIndex"]:=TextBackgroundColorIndex
 		;;;;;
-		TextArr:=String2Array(Text)
+		TextArr:=this._String2Array(Text)
 		this._FormatSubBlocks(TextArr,"",0)
 		SubBlockSize:=TextArr.Length()
 		;;;;;
@@ -1115,8 +1115,8 @@ class GIFProperties extends GIFTransform{
 			this.Frame[Idx]:={}
 		Else
 			this.Frame.InsertAt(Idx," "), this.Frame[Idx]:={}
-		Frm:=ObjFullyClone(FrameObj)
-		this.Frame[Idx,"Data"]:=ShiftArray(Frm)
+		Frm:=this._ObjFullyClone(FrameObj)
+		this.Frame[Idx,"Data"]:=this._ShiftArray(Frm)
 		this.Frame[Idx,"LZWMinimumCodeSize"]:=8
 		Sz:=this.Frame[Idx,"Data"].Length()
 		this.Stats.FileSize+=(Sz<10?10:Sz)
@@ -1141,14 +1141,14 @@ class GIFProperties extends GIFTransform{
 		;Console.Send("Set Image Descriptor`r`n","I")
 	}
 	GetCountOfFrames(){
-		Return GetKeyCount(this.Frame)
+		Return this.Frame.Count()
 	}
 	GetFileSize(){
 		Return this.Stats.FileSize
 	}
 }
 
-class GIFTransform{
+class GIFTransform extends GIFHelper{
 	TransformBackgroundColor(R,G,B,A:=0){
 		If (GlobalColorTableFlag:=this.LogicalScreenDescriptor["GlobalColorTableFlag"]=1)	; We have a global color table
 			{
@@ -1184,7 +1184,7 @@ class GIFTransform{
 			}
 	}
 	Unify(Setting:=1){
-		tic:=QPC(1)
+		tic:=thsi._QPC(1)
 		MaxXCoord:=0
 		MaxYCoord:=0
 		Loop, % this.Frame.Length()
@@ -1240,7 +1240,7 @@ class GIFTransform{
 		this.LogicalScreenDescriptor["CanvasWidth"]:=MaxWidth
 		this.LogicalScreenDescriptor["CanvasHeight"]:=MaxHeight
 		
-		Console.Send("Unified frames in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Unified frames in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_InsertRC(ByRef FrameObj,PalEntry,Top,Bottom,Left,Right){
 		Width:=FrameObj["ImageWidth"]
@@ -1282,3 +1282,114 @@ class GIFTransform{
 	}
 }
 
+class GIFHelper{
+	;;;;; Helper Functions ;;;;;
+	_QPC(R:=0){ ; By SKAN, http://goo.gl/nf7O4G, CD:01/Sep/2014 | MD:01/Sep/2014
+	  Static P:=0, F:=0, Q:=DllCall("QueryPerformanceFrequency","Int64P",F)
+	  Return !DllCall("QueryPerformanceCounter","Int64P",Q)+(R?(P:=Q)/F:(Q-P)/F) 
+	}
+	
+	_GetBits(num,start:=0,count:=1,bits:=8){
+		bits:=this._Num2Bin(num,bits)
+		rbits:=SubStr(bits,start+1,count)
+		Return this._Bin2Num(rbits)
+	}
+	
+	_PackByte(Size,Bits*){
+		tmp:=""
+		For k,v in Bits
+			tmp.=this._Num2Bin(v,(Size[k]=""?1:Size[k]))
+		Return this._Bin2Num(tmp)
+	}
+	
+	_FormatStr(String:="",Filler:="",Length:=0,Justify:="R"){
+		tmp:=""
+		Loop, % Length
+			tmp.=Filler
+		If (Justify="R")
+			Return SubStr(tmp String,(Length-1)*-1)
+		Else If (Justify="C")
+			Return (StrLen(String)>=Length?SubStr(String tmp,1,Length):SubStr(SubStr(tmp,1,(Length-StrLen(String))//2) String tmp,1,Length))
+		Else ;If (Justify="L")
+			Return SubStr(String tmp,1,Length)
+	}
+	
+	_String2Array(Str){
+		Arr:=StrSplit(Str)
+		For k,v in Arr
+			Arr[k]:=Asc(v)
+		Return Arr
+	}
+	
+	_st_printArr(array, depth=5, indentLevel=""){
+		list:=""
+	   for k,v in Array
+	   {
+		  list.= indentLevel "[" k "]"
+		  if (IsObject(v) && depth>1)
+			 list.="`r`n" this._st_printArr(v, depth-1, indentLevel . "    ")
+		  Else
+			 list.=" => " v
+		  list.="`r`n"
+	   }
+	   return rtrim(list)
+	}
+
+	_Bin2Num(bits,neg="") {  ; Return number converted from the binary "bits" string
+	   n = 0                ; If "neg" is not 0 or empty, 11..1 assumed on the left
+	   Loop Parse, bits
+		  n += n + A_LoopField
+	   Return n - !(neg<1)*(1<<StrLen(bits))
+	}
+
+	_Num2Bin(n,bits=0) {     ; Return LS "bits" of binary representation of "n"
+	   b:=""
+	   IfLess bits,1, Loop  ; n < 0: leading 1's are omitted. -1 -> 1, 0 -> 0
+		  {
+			 b := n&1 b
+			 n := n>>1
+			 If (n = n>>1)
+				Break
+		  }
+	   Else Loop %bits%
+		  {
+			 b := n&1 b
+			 n := n>>1
+		  }
+	   Return b
+	}
+
+	_ObjFullyClone(obj){	; https://autohotkey.com/board/topic/103411-cloned-object-modifying-original-instantiation/?p=638500
+		nobj:=ObjClone(obj)
+		For k,v in nobj
+			If IsObject(v)
+				nobj[k]:=this._ObjFullyClone(v)
+		Return nobj
+	}
+
+	_ShiftArray(Arr){  ; Converts a <1-based linear array to 1-based
+		While Arr.MinIndex()<1
+			I:=Arr.MinIndex(), Arr.InsertAt(I,""), Arr.Delete(I)
+		Return Arr
+	}
+
+
+	;;;;;	Gdip	;;;;;
+	GDIPlus_pBitmapFromBuffer(ByRef Buffer,nSize,BufferAddress:="") {
+	 pStream:=pBitmap:=""
+	 hData:=DllCall("GlobalAlloc",UInt,2,UInt,nSize), pData:=DllCall("GlobalLock",UInt,hData)
+	 DllCall("RtlMoveMemory",UInt,pData,UInt,(BufferAddress?BufferAddress:&Buffer),UInt,nSize)
+	 DllCall("GlobalUnlock",UInt,hData)
+	 DllCall("ole32\CreateStreamOnHGlobal",UInt,hData,Int,True,UIntP,pStream)
+	 DllCall("gdiplus\GdipCreateBitmapFromStream",UInt,pStream,UIntP,pBitmap)
+	 DllCall(NumGet(NumGet(1*pStream)+8),UInt,pStream) ; IStream::Release
+	Return pBitmap
+	}
+}
+
+#Include <PS_ExceptionHandler>	; https://github.com/Sampsca/PS_ExceptionHandler
+;#Include PushLog.ahk			; https://github.com/Sampsca/PushLog
+#Include MemoryFileIO.ahk		; https://github.com/Sampsca/MemoryFileIO
+#Include Gdip_All.ahk
+#Include PS_PAL.ahk
+#Include PS_BMP.ahk

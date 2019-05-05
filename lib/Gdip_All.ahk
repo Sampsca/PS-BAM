@@ -543,6 +543,48 @@ DestroyIcon(hIcon)
 
 ;#####################################################################################
 
+; Function:				GetIconDimensions
+; Description:			Retrieves a given icon/cursor's width and height 
+;
+; hIcon					Pointer to an icon or cursor
+; Width					ByRef variable. This variable is set to the icon's width
+; Height				ByRef variable. This variable is set to the icon's height
+;
+; return				If the function succeeds, the return value is zero, otherwise:
+;						-1 = Could not retrieve the icon's info. Check A_LastError for extended information
+;						-2 = Could not delete the icon's bitmask bitmap
+;						-3 = Could not delete the icon's color bitmap
+
+GetIconDimensions(hIcon, ByRef Width, ByRef Height) {
+	Ptr := A_PtrSize ? "UPtr" : "UInt"
+	Width := Height := 0
+
+	VarSetCapacity(ICONINFO, size := 16 + 2 * A_PtrSize, 0)
+
+	if !DllCall("user32\GetIconInfo", Ptr, hIcon, Ptr, &ICONINFO)
+		return -1
+	
+	hbmMask := NumGet(&ICONINFO, 16, Ptr)
+	hbmColor := NumGet(&ICONINFO, 16 + A_PtrSize, Ptr)
+	VarSetCapacity(BITMAP, size, 0)
+
+	if DllCall("gdi32\GetObject", Ptr, hbmColor, "Int", size, Ptr, &BITMAP)
+	{
+		Width := NumGet(&BITMAP, 4, "Int")
+		Height := NumGet(&BITMAP, 8, "Int")
+	}
+
+	if !DllCall("gdi32\DeleteObject", Ptr, hbmMask)
+		return -2
+	
+	if !DllCall("gdi32\DeleteObject", Ptr, hbmColor)
+		return -3
+
+	return 0
+}
+
+;#####################################################################################
+
 PaintDesktop(hdc)
 {
 	return DllCall("PaintDesktop", A_PtrSize ? "UPtr" : "UInt", hdc)
@@ -765,6 +807,42 @@ Gdip_BitmapFromBRA(ByRef BRAFromMemIn, File, Alternate := 0) {
 	DllCall("Gdiplus.dll\GdipCreateBitmapFromStream", "Ptr", pStream, "PtrP", pBitmap)
 	ObjRelease(pStream)
 	Return pBitmap
+}
+
+;#####################################################################################
+
+; Function:				Gdip_BitmapFromBase64
+; Description:			Creates a bitmap from a Base64 encoded string
+;
+; Base64				ByRef variable. Base64 encoded string. Immutable, ByRef to avoid performance overhead of passing long strings.
+;
+; return				If the function succeeds, the return value is a pointer to a bitmap, otherwise:
+;						-1 = Could not calculate the length of the required buffer
+;						-2 = Could not decode the Base64 encoded string
+;						-3 = Could not create a memory stream
+
+Gdip_BitmapFromBase64(ByRef Base64)
+{
+	Ptr := A_PtrSize ? "UPtr" : "UInt"
+
+	; calculate the length of the buffer needed
+	if !(DllCall("crypt32\CryptStringToBinary", Ptr, &Base64, "UInt", 0, "UInt", 0x01, Ptr, 0, "UIntP", DecLen, Ptr, 0, Ptr, 0))
+		return -1
+
+	VarSetCapacity(Dec, DecLen, 0)
+
+	; decode the Base64 encoded string
+	if !(DllCall("crypt32\CryptStringToBinary", Ptr, &Base64, "UInt", 0, "UInt", 0x01, Ptr, &Dec, "UIntP", DecLen, Ptr, 0, Ptr, 0))
+		return -2
+
+	; create a memory stream
+	if !(pStream := DllCall("shlwapi\SHCreateMemStream", Ptr, &Dec, "UInt", DecLen, "UPtr"))
+		return -3
+
+	DllCall("gdiplus\GdipCreateBitmapFromStreamICM", Ptr, pStream, "PtrP", pBitmap)
+	ObjRelease(pStream)
+
+	return pBitmap
 }
 
 ;#####################################################################################

@@ -1,4 +1,4 @@
-﻿;;;;;	GDIPlus	;;;;;
+;;;;;	GDIPlus	;;;;;
 #Include, Gdip_All.ahk
 
 ;;;;;	PS_PAL	;;;;;

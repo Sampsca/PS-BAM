@@ -1,5 +1,5 @@
 ﻿;
-; AutoHotkey Version: 1.1.30.00
+; AutoHotkey Version: 1.1.30.03
 ; Language:       English
 ; Platform:       Optimized for Windows 10
 ; Author:         Sam.
@@ -13,8 +13,9 @@ SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 #MaxMem 1024	; Consider turning this back off before release...
 Process, Priority, , A
 SetBatchLines, -1
+OnError("Traceback")
 
-Global PS_Version:="v0.0.0.4a"
+Global PS_Version:="v0.0.0.5a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -34,7 +35,7 @@ If (Settings.MaxThreads>1)
 	Settings.LogFile:=""
 	}
 
-Global Console:=New PushLog("////////////////////////////////////////////////////////////`r`n// PS BAM " PS_Version ", Copyright (c) 2012-2018 Sam Schmitz ///`r`n////////////////////////////////////////////////////////////",Settings.LogFile,2)
+Global Console:=New PushLog("////////////////////////////////////////////////////////////`r`n// PS BAM " PS_Version ", Copyright (c) 2012-2019 Sam Schmitz ///`r`n////////////////////////////////////////////////////////////",Settings.LogFile,2)
 
 ;~ InPath:=A_ScriptDir "\mdr11207.bam"
 ;~ InPath:=A_ScriptDir "\CDMF4G12_orig.bam"
@@ -71,9 +72,9 @@ ProcessCLIArgOpt(){
 			}
 		If (OrigLog<>Settings.LogFile)
 			{
-			Console.SavePath:=Settings.LogFile
+			Console.ModifySavePath(Settings.LogFile) ; was Console.SavePath:=Settings.LogFile
 			FormatTime, TimeString, ,MMMM dd, yyyy 'at' h:mm.ss tt
-			Console.Send("////////////////////////////////////////////////////////////`r`n// PS BAM " PS_Version ", Copyright (c) 2012-2018 Sam Schmitz ///`r`n////////////////////////////////////////////////////////////`r`nInitializing logging of errors and warnings on " TimeString ".`r`n","",-1)
+			Console.Send("////////////////////////////////////////////////////////////`r`n// PS BAM " PS_Version ", Copyright (c) 2012-2019 Sam Schmitz ///`r`n////////////////////////////////////////////////////////////`r`nInitializing logging of errors and warnings on " TimeString ".`r`n","",-1)
 			}
 		Console.Send("//////////////////// Settings ////////////////////`r`n","-I")
 		
@@ -285,7 +286,8 @@ ProcessFile(Input,Output){
 	} catch e {
 		; throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "", extra: ""}
 		Console.Send("Exception thrown!`n`nWhat	=	" e.what "`nFile	=	" e.file "`nLine	=	" e.line "`nMessage	=	" e.message "`nExtra	=	" e.extra "`r`n","E")
-		ThrowMsg(16,"Error!","Exception thrown!`n`nWhat	=	" e.what "`nFile	=	" e.file "`nLine	=	" e.line "`nMessage	=	" e.message "`nExtra	=	" e.extra)
+		;ThrowMsg(16,"Error!","Exception thrown!`n`nWhat	=	" e.what "`nFile	=	" e.file "`nLine	=	" e.line "`nMessage	=	" e.message "`nExtra	=	" e.extra)
+		ExceptionErrorDlg(e)
 		BAM:="", PS_Summary.="`r`n"
 		}
 }
@@ -320,7 +322,8 @@ VerifyOutput(OriginalOutput){	; Saving files to the same folder and sometimes de
 	} catch e {
 		; throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "", extra: ""}
 		Console.Send("Exception thrown!`n`nWhat	=	" e.what "`nFile	=	" e.file "`nLine	=	" e.line "`nMessage	=	" e.message "`nExtra	=	" e.extra "`r`n","E")
-		ThrowMsg(16,"Error!","Exception thrown!`n`nWhat	=	" e.what "`nFile	=	" e.file "`nLine	=	" e.line "`nMessage	=	" e.message "`nExtra	=	" e.extra)
+		;ThrowMsg(16,"Error!","Exception thrown!`n`nWhat	=	" e.what "`nFile	=	" e.file "`nLine	=	" e.line "`nMessage	=	" e.message "`nExtra	=	" e.extra)
+		ExceptionErrorDlg(e)
 		}
 }
 GetOutPath(InPath){
@@ -452,7 +455,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			this._ReadPalette()
 			this._ReadV2FrameLookupTable()
 			this._ReadDataBlocks()
-			throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "Reading PVRZ files is not yet supported...  The first file to read would be:  " this.DataBlocks[0,"PVRZFile"], extra: ""}
+			throw Exception("Reading PVRZ files is not yet supported...  The first file to read would be:  " this.DataBlocks[0,"PVRZFile"],,"`n`n" Traceback())
 			}
 		Else
 			{
@@ -494,7 +497,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 					}
 				}
 			Else	; Frame Data IS RLE
-				throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "Frame " Index " is RLE'd but bit depths >8 can not have RLE!", extra: ""}
+				throw Exception("Frame " Index " is RLE'd but bit depths >8 can not have RLE!",,"`n`n" Traceback())
 			ByteCount:=(UPFrames[Index].MaxIndex()=""?0:UPFrames[Index].MaxIndex()+1)
 			If (ByteCount<>PixelCount)
 				Console.Send("Frame " Index " is " ByteCount " pixels long but was expected to be " PixelCount " pixels!`r`n","W")
@@ -995,7 +998,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			this.Stats.OffsetToFLT:=this.DataMem.ReadDWORD(), Console.Send("OffsetToFLT=" this.Stats.OffsetToFLT "`r`n","I")
 			}
 		Else
-			throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "The following file is not a supported BAM file:`r`n" this.InputPath, extra: "Signature """ this.Stats.Signature """ / Version """ this.Stats.Version """ not supported."}
+			throw Exception("The following file is not a supported BAM file:`r`n" this.InputPath,,"Signature """ this.Stats.Signature """ / Version """ this.Stats.Version """ not supported.`n`n" Traceback())
 		Console.Send("BAM Header read in " (QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_WriteBAMHeader(){
@@ -1019,7 +1022,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			this.DataMem.WriteDWORD(this.Stats.OffsetToFLT)
 			}
 		Else
-			throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "The compiled data is not a supported BAM file", extra: "Signature """ this.Stats.Signature """ / Version """ this.Stats.Version """ not supported."}
+			throw Exception("The compiled data is not a supported BAM file",,"Signature """ this.Stats.Signature """ / Version """ this.Stats.Version """ not supported.`n`n" Traceback())
 		Console.Send("BAM Header written in " (QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_ReadFrameEntries(){ ;;;;; BAM V1 Frame Entries ;;;;;
@@ -1308,7 +1311,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			If !(this.FrameEntries[FrameDataEntry,"RLE"]) AND (FrameDataEntry<>"")	; Frame Data is NOT RLE and has an associated Frame Entry
 				{
 				If (PixelCount<>(this.FrameData[Index].MaxIndex()=""?0:this.FrameData[Index].MaxIndex()+1))
-					throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "Frame " Index " is " (this.FrameData[Index].MaxIndex()=""?0:this.FrameData[Index].MaxIndex()+1) " bytes long but was expected to be " PixelCount " bytes!", extra: "FrameDataEntry=" FrameDataEntry}
+					throw Exception("Frame " Index " is " (this.FrameData[Index].MaxIndex()=""?0:this.FrameData[Index].MaxIndex()+1) " bytes long but was expected to be " PixelCount " bytes!",,"FrameDataEntry=" FrameDataEntry "`n`n" Traceback())
 				Loop, % PixelCount
 					{
 					Index2:=A_Index-1
@@ -1332,7 +1335,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 		VarSetCapacity(Decompressed,OriginalSize)
 		ErrorLevel:=DllCall(PS_DirArch "\zlib1.dll\uncompress","Ptr",&Decompressed,"UIntP",OriginalSize,"Ptr",this.GetAddress("Raw")+12,"UInt",this.Stats.FileSize-12,"Cdecl")
 		If (ErrorLevel<0)
-			throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "ErrorLevel=" ErrorLevel A_Tab "A_LastError=" A_LastError, extra: "zlib Decompression Error"}
+			throw Exception("ErrorLevel=" ErrorLevel A_Tab "A_LastError=" A_LastError,,"zlib Decompression Error`n`n" Traceback())
 		this.Stats.FileSize:=OriginalSize, Console.Send("FileSize=" this.Stats.FileSize "`r`n","I")
 		this.Delete("Raw"), this.Raw:=" ", this.SetCapacity("Raw",OriginalSize), this.DataMem:=""
 		DllCall("RtlMoveMemory","Ptr",this.GetAddress("Raw"),"Ptr",&Decompressed,"UInt",OriginalSize)
@@ -1347,7 +1350,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 		VarSetCapacity(Compressed,nSize)
 		ErrorLevel:=DllCall(PS_DirArch "\zlib1.dll\compress2","ptr",&Compressed,"UIntP",nSize,"ptr",this.GetAddress("Raw"),"UInt",DataLen,"Int",9,"Cdecl")
 		If (ErrorLevel<0)
-			throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "ErrorLevel=" ErrorLevel A_Tab "A_LastError=" A_LastError, extra: "zlib Compression Error"}
+			throw Exception("ErrorLevel=" ErrorLevel A_Tab "A_LastError=" A_LastError,,"zlib Compression Error`n`n" Traceback())
 		this.Delete("Raw"), this.Raw:=" ", this.SetCapacity("Raw",nSize+12), this.DataMem:="", this.DataMem:=New MemoryFileIO(this.GetAddress("Raw"),nSize+12)
 		this.DataMem.Write("BAMCV1" A_Space A_Space), this.DataMem.WriteUInt(DataLen)
 		DllCall("RtlMoveMemory","Ptr",this.GetAddress("Raw")+12,"Ptr",&Compressed,"UInt",nSize)
@@ -1582,7 +1585,7 @@ class ExBAMIO extends ImBAMIO{
 				pBitmap_F:=GDIPlus_pBitmapFromBuffer(Raw,FileSize)
 				Error:=Gdip_SaveBitmapToFile(pBitmap_F,Output0)
 				If (Error<0)
-					throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "ErrorLevel=" Error A_Tab "A_LastError=" A_LastError, extra: "Error in Gdip_SaveBitmapToFile() trying to convert and save '" Output0 "' to file."}
+					throw Exception("ErrorLevel=" Error A_Tab "A_LastError=" A_LastError,,"Error in Gdip_SaveBitmapToFile() trying to convert and save '" Output0 "' to file.`n`n" Traceback())
 				Gdip_DisposeImage(pBitmap_F)
 				VarSetCapacity(Raw,0)
 				}
@@ -2024,7 +2027,7 @@ class CompressBAM extends ProcessBAM{
 		VarSetCapacity(Out_Data,Bytes:=1024,0)
 		ErrorLevel:=DllCall("Crypt32.dll\CryptStringToBinary","Ptr",&TD,"UInt",0,"UInt",1,"Ptr",&Out_Data,"UIntP",Bytes,"Int",0,"Int",0,"CDECL Int")
 		If !(ErrorLevel)
-			throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "ErrorLevel=" ErrorLevel A_Tab "A_LastError=" A_LastError, extra: "CryptStringToBinary Error"}
+			throw Exception("ErrorLevel=" ErrorLevel A_Tab "A_LastError=" A_LastError,,"CryptStringToBinary Error`n`n" Traceback())
 		TD:=""
 		RefPalBIN:=New MemoryFileIO(Out_Data,Bytes)
 		RefPalBIN.Seek(0,0)
@@ -2817,7 +2820,7 @@ class CompressBAM extends ProcessBAM{
 				{
 				Idx:=ArrayContainsArray(Array,Sub:=GetSubArray(this.FrameLookupTable,this.CycleEntries[Index,"IndexIntoFLT"],this.CycleEntries[Index,"CountOfFrameIndices"],1))-1
 				If (Idx="")
-					throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "Sequence not found in FLT.", extra: "CycleEntry=" Index " | Sequence=" Sub}
+					throw Exception("Sequence not found in FLT.",,"CycleEntry=" Index " | Sequence=" Sub "`n`n" Traceback())
 				this.CycleEntries[Index,"IndexIntoFLT"]:=Idx
 				}
 			Else
@@ -3798,11 +3801,12 @@ Return pBitmap
 ;~ #Include <PushLog>
 ;~ #Include <getopt>
 ;~ #Include <MD5>
+#Include <PS_ExceptionHandler>	; https://github.com/Sampsca/PS_ExceptionHandler
 #Include %A_ScriptDir%\lib
 #Include PushLog.ahk
 #Include getopt.ahk
 #Include MD5.ahk
-#Include MemoryFileIO_v2.1.ahk
+#Include MemoryFileIO.ahk
 #Include Permutation.ahk
 #Include ImageLibraryImports.ahk
 ;#Include, quick_sort_array_no_recursion.ahk
