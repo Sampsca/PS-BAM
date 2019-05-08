@@ -26,7 +26,7 @@ SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;             PS_PVR             ;;;;;
 ;;;;;  Copyright (c) 2018-2019 Sam.  ;;;;;
-;;;;;      Last Updated 20190502     ;;;;;
+;;;;;      Last Updated 20190507     ;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 /* ; Usage Example:
@@ -528,6 +528,16 @@ class PSPVR{
 		file.Close()
 		BMP:=""
 		Console.Send("Exported SubTexture in BMP format in " (this._QPC(1)-tic) " sec.`r`n","-I")
+	}
+	AlphaCutoff(Val:=0,RR:=0,GG:=255,BB:=0,AA:=255){
+		For TexIndex, Texture in this.Textures
+			{
+			For k,v in Texture
+				{
+				If (v["AA"]<=Val)
+					v["RR"]:=RR, v["GG"]:=GG, v["BB"]:=BB, v["AA"]:=AA
+				}
+			}
 	}
 	_MapPVRTexLibDLL(){
 		PVRTexLibDLL:={}, PVRTexLibDLL.SetCapacity(269)

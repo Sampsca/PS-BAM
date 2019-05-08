@@ -15,7 +15,7 @@ Process, Priority, , A
 SetBatchLines, -1
 OnError("Traceback")
 
-Global PS_Version:="v0.0.0.7a"
+Global PS_Version:="v0.0.0.8a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -1309,57 +1309,154 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 		PVR:={}
 		SplitPath, % (this.InputPath), , InDir
 		Path:=RegExReplace(InDir,"\\$")
-		
-		
 		Loop, % this.Stats.CountOfDataBlocks
 			{
 			Index:=A_Index-1
 			file:=this.DataBlocks[Index,"PVRZFile"]
-			;;; FAKE IT TO TEST ;;;
-			file:="MOS1193.PVRZ"
-			
-			
 			If !PVR.HasKey(file)
 				{
 				If !FileExist(Path "\" file)
 					throw Exception(file " was referenced but could not be found in '" Path "\'.",,"All relevant PVRZ files should be placed in the same directory as the the BAM V2 file.`n`n" Traceback())
 				PVR[file]:=New PSPVR()
 				PVR[file].LoadPVRFromFile(Path "\" file)
+				PVR[file].AlphaCutoff(0)
 				}
 			this.DataBlocks[Index,"SubTexture"]:=PVR[file].ExtractSubTexture(0,this.DataBlocks[Index,"SourceX"],this.DataBlocks[Index,"SourceY"],this.DataBlocks[Index,"Width"],this.DataBlocks[Index,"Height"])
 			}
-		For k,v in PVR
-			v:=""
 		Console.Send("PVR SubBlocks read in " (QPC(1)-tic) " sec.`r`n","-I")
 	}
-	_ConvertPVRSubBlocksToFrames(){
-		tic:=QPC(1)
-		; Initialize space to store paletted and unpaletted frame data
-		this.FrameData:={}, this.FrameData.SetCapacity(this.Stats.CountOfFrameEntries)
-		UPFrames:={}, UPFrames.SetCapacity(this.Stats.CountOfFrameEntries)
-		; Initialize Quantizer
-		Quant:=New PS_Quantization()
-		Quant.AddReservedColor(0,255,0,0)
-		Quant.AddReservedColor(0,0,0,0)
+	;~ _ConvertPVRSubBlocksToFrames(){
+		;~ tic:=QPC(1)
+		;~ ; Initialize space to store paletted and unpaletted frame data
+		;~ this.FrameData:={}, this.FrameData.SetCapacity(this.Stats.CountOfFrameEntries)
+		;~ UPFrames:={}, UPFrames.SetCapacity(this.Stats.CountOfFrameEntries)
+		;~ ; Initialize Quantizer
+		;~ Quant:=New PS_Quantization()
+		;~ Quant.AddReservedColor(0,255,0,0)
+		;~ Quant.AddReservedColor(0,0,0,0)
+		;~ Loop, % this.Stats.CountOfFrameEntries
+			;~ {
+			;~ Index:=A_Index-1
+			;~ W:=this.FrameEntries[Index,"Width"]
+			;~ H:=this.FrameEntries[Index,"Height"]
+			;~ X:=this.FrameEntries[Index,"CenterX"]
+			;~ Y:=this.FrameEntries[Index,"CenterY"]
+			;~ Idx:=this.FrameEntries[Index,"IndexIntoDataBlocks"]
+			;~ Cnt:=this.FrameEntries[Index,"CountOfDataBlocks"]
+			;~ If (Cnt=0)
+				;~ this.FrameData[Index]:=[]
+			;~ Else
+				;~ {
+				;~ ; Determine true canvas size if there is a mismatch btwn dimensions in FrameEntries and DataBlocks
+				;~ CanvasWidth:=CanvasHeight:=1
+				;~ Loop, % Cnt
+					;~ {
+					;~ CanvasWidth:=(this.DataBlocks[Idx+A_Index-1,"Width"]+this.DataBlocks[Idx+A_Index-1,"TargetX"]>CanvasWidth?this.DataBlocks[Idx+A_Index-1,"Width"]+this.DataBlocks[Idx+A_Index-1,"TargetX"]:CanvasWidth)
+					;~ CanvasHeight:=(this.DataBlocks[Idx+A_Index-1,"Height"]+this.DataBlocks[Idx+A_Index-1,"TargetY"]>CanvasHeight?this.DataBlocks[Idx+A_Index-1,"Height"]+this.DataBlocks[Idx+A_Index-1,"TargetY"]:CanvasHeight)
+					;~ }
+				;~ If (CanvasWidth<>W) OR (CanvasHeight<>H)
+					;~ {
+					;~ Console.Send("Calculated canvas dimensions (" CanvasWidth "x" CanvasHeight ") do not match frame dimensions (" W "x" H  ") for FrameEntry " Index ".`r`n","W")
+					;~ W:=this.FrameEntries[Index,"Width"]:=CanvasWidth:=(CanvasWidth<W?W:CanvasWidth)
+					;~ H:=this.FrameEntries[Index,"Height"]:=CanvasHeight:=(CanvasHeight<H?H:CanvasHeight)
+					;~ }
+				;~ ; Create virtual canvas
+				;~ Canvas:={}, Canvas.SetCapacity(Px:=CanvasWidth*CanvasHeight)
+				;~ Loop, %Px% ; Initialize virtual canvas to transparent green
+					;~ Canvas[A_Index-1,"RR"]:=0, Canvas[A_Index-1,"GG"]:=255, Canvas[A_Index-1,"BB"]:=0, Canvas[A_Index-1,"AA"]:=0
+				;~ ; Composite PVR SubTextures onto Canvas
+				;~ Loop, % Cnt
+					;~ {
+					;~ Idxi:=Idx+A_Index-1
+					;~ FrameUP:=this.DataBlocks[Idxi,"SubTexture"]
+					;~ sX:=this.DataBlocks[Idxi,"TargetX"]
+					;~ sY:=this.DataBlocks[Idxi,"TargetY"]
+					;~ sW:=this.DataBlocks[Idxi,"Width"]
+					;~ sH:=this.DataBlocks[Idxi,"Height"]
+					;~ this._CompositeUC(FrameUP,sX,sY,sW,sH,Canvas,CanvasWidth,CanvasHeight)
+					;~ }
+				;~ UPFrames[UPFrames.Count()]:=Canvas ; Store Canvas as an unpaletted frame for later use
+				;~ ; Start feeding pixels from Canvas into quantizer
+				;~ For k,v in Canvas
+					;~ Quant.AddColor(v["RR"],v["GG"],v["BB"],v["AA"])
+				;~ }
+			;~ }
+		;~ ; Quantize colors
+		;~ Console.Send("ColorCount = " Quant.GetColorCount() "`r`n","I")
+		;~ Quant.Quantize(256)
+		;~ Console.Send("Total Error: " Quant.GetTotalError() "`r`n","I")
+		;~ ; Store generated palette
+		;~ this.Palette:=PalObj:=Quant.GetPaletteObj()
+		;~ ; Convert unpaletted frames to paletted
+		;~ For k,v in UPFrames
+			;~ {
+			;~ this.FrameData[k].SetCapacity(v.Count())
+			;~ For k2,v2 in v
+				;~ this.FrameData[k,k2]:=Quant.GetQuantizedColorIndex(v2["RR"],v2["GG"],v2["BB"],v2["AA"])
+			;~ }
+		;~ Quant:=""
+		;~ this.Stats.TransColorIndex:=0
+		;~ this.Stats.ShadowColorIndex:=1
+		;~ Console.Send("PVR SubBlocks converted to frames in " (QPC(1)-tic) " sec.`r`n","-I")
+	;~ }
+	_MakeV2FrameEntriesLUT(){
+		FrameEntriesLUT:={}
 		Loop, % this.Stats.CountOfFrameEntries
 			{
 			Index:=A_Index-1
-			W:=this.FrameEntries[Index,"Width"]
-			H:=this.FrameEntries[Index,"Height"]
-			X:=this.FrameEntries[Index,"CenterX"]
-			Y:=this.FrameEntries[Index,"CenterY"]
-			Idx:=this.FrameEntries[Index,"IndexIntoDataBlocks"]
-			Cnt:=this.FrameEntries[Index,"CountOfDataBlocks"]
-			If (Cnt=0)
+			Key:="_" this.FrameEntries[Index,"Width"] this.FrameEntries[Index,"Height"] this.FrameEntries[Index,"CenterX"] this.FrameEntries[Index,"CenterY"] this.FrameEntries[Index,"IndexIntoDataBlocks"] this.FrameEntries[Index,"CountOfDataBlocks"]
+			If !FrameEntriesLUT.HasKey(Key)
+				{
+				FrameEntriesLUT[Key]:=Index
+				FrameEntriesLUT[Index]:=Index
+				}
+			Else
+				FrameEntriesLUT[Index]:=FrameEntriesLUT[Key]
+			}
+		Return FrameEntriesLUT
+	}
+	_ConvertPVRSubBlocksToFrames(){
+		tic:=QPC(1)
+		; Initialize space to store paletted frame data
+		this.FrameData:={}, this.FrameData.SetCapacity(this.Stats.CountOfFrameEntries)
+		; Load an external palette if directed to do so
+		If FileExist(Settings.ReplacePalette) AND (Settings.ReplacePaletteMethod<>"Quant")
+			PalObj:=this._ReadBAMDPalette("",Settings.ReplacePalette)
+		If PalObj.Count()	; We loaded a palette from somewhere
+			{
+			this.Palette:=PalObj
+			Histo:=""
+			}
+		Else
+			{
+			; Initialize space to store unpaletted frame data
+			UPFrames:={}, UPFrames.SetCapacity(this.Stats.CountOfFrameEntries)
+			; Initialize Quantizer
+			Quant:=New PS_Quantization()
+			Quant.AddReservedColor(0,255,0,0)
+			Quant.AddReservedColor(0,0,0,0)
+			}
+		; Initialize LUT to speed up generating frames for BAMs with duplicate frames
+		;~ FrameEntriesLUT:=this._MakeV2FrameEntriesLUT()
+		Loop, % this.Stats.CountOfFrameEntries
+			{
+			Index:=A_Index-1
+			;~ If (FrameEntriesLUT[Index]<>Index)
+				;~ Continue ; This will be a duplicate frame
+			Console.Send("Generating FrameData for Frame " Index ".`r`n","I")
+			W:=this.FrameEntries[Index,"Width"], H:=this.FrameEntries[Index,"Height"]
+			Idx:=this.FrameEntries[Index,"IndexIntoDataBlocks"], Cnt:=this.FrameEntries[Index,"CountOfDataBlocks"]
+			If !Cnt
 				this.FrameData[Index]:=[]
 			Else
 				{
 				; Determine true canvas size if there is a mismatch btwn dimensions in FrameEntries and DataBlocks
-				CanvasWidth:=CanvasHeight:=1
+				CanvasWidth:=CanvasHeight:=0
 				Loop, % Cnt
 					{
-					CanvasWidth:=(this.DataBlocks[Idx+A_Index-1,"Width"]+this.DataBlocks[Idx+A_Index-1,"TargetX"]>CanvasWidth?this.DataBlocks[Idx+A_Index-1,"Width"]+this.DataBlocks[Idx+A_Index-1,"TargetX"]:CanvasWidth)
-					CanvasHeight:=(this.DataBlocks[Idx+A_Index-1,"Height"]+this.DataBlocks[Idx+A_Index-1,"TargetY"]>CanvasHeight?this.DataBlocks[Idx+A_Index-1,"Height"]+this.DataBlocks[Idx+A_Index-1,"TargetY"]:CanvasHeight)
+					Idxi:=Idx+A_Index-1
+					CanvasWidth:=((DBWX:=this.DataBlocks[Idxi,"Width"]+this.DataBlocks[Idxi,"TargetX"])>CanvasWidth?DBWX:CanvasWidth)
+					CanvasHeight:=((DBHY:=this.DataBlocks[Idxi,"Height"]+this.DataBlocks[Idxi,"TargetY"])>CanvasHeight?DBHY:CanvasHeight)
 					}
 				If (CanvasWidth<>W) OR (CanvasHeight<>H)
 					{
@@ -1367,41 +1464,68 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 					W:=this.FrameEntries[Index,"Width"]:=CanvasWidth:=(CanvasWidth<W?W:CanvasWidth)
 					H:=this.FrameEntries[Index,"Height"]:=CanvasHeight:=(CanvasHeight<H?H:CanvasHeight)
 					}
-				; Create virtual canvas
-				Canvas:={}, Canvas.SetCapacity(Px:=CanvasWidth*CanvasHeight)
-				Loop, %Px% ; Initialize virtual canvas to transparent green
-					Canvas[A_Index-1,"RR"]:=0, Canvas[A_Index-1,"GG"]:=255, Canvas[A_Index-1,"BB"]:=0, Canvas[A_Index-1,"AA"]:=0
-				; Composite PVR SubTextures onto Canvas
-				Loop, % Cnt
+				If (Cnt=1) AND (this.DataBlocks[Idx,"TargetX"]=0) AND (this.DataBlocks[Idx,"TargetY"]=0) AND (this.DataBlocks[Idx,"Width"]=W) AND (this.DataBlocks[Idx,"Height"]=H) ; If 1 frame that is entire canvas
 					{
-					Idxi:=Idx+A_Index-1
-					FrameUP:=this.DataBlocks[Idxi,"SubTexture"]
-					sX:=this.DataBlocks[Idxi,"TargetX"]
-					sY:=this.DataBlocks[Idxi,"TargetY"]
-					sW:=this.DataBlocks[Idxi,"Width"]
-					sH:=this.DataBlocks[Idxi,"Height"]
-					this._CompositeUC(FrameUP,sX,sY,sW,sH,Canvas,CanvasWidth,CanvasHeight)
+					If PalObj.Count() ; We already have a palette
+						{
+						this.FrameData[Index]:=this._ConvertFrameToPaletted(this.DataBlocks[Idx,"SubTexture"],this.Palette,Histo)
+						;Console.Send("Histogram contains " Histo.Count() " colors.`r`n","-I")
+						}
+					Else ; We will need to quantize the frame
+						UPFrames[Index]:=this.DataBlocks[Idx,"SubTexture"] ; Store Canvas as an unpaletted frame for later use
 					}
-				UPFrames[UPFrames.Count()]:=Canvas ; Store Canvas as an unpaletted frame for later use
-				; Start feeding pixels from Canvas into quantizer
-				For k,v in Canvas
-					Quant.AddColor(v["RR"],v["GG"],v["BB"],v["AA"])
+				Else ; More than one frame or frame doesn't take up entire canvas, so we need to composite it/them onto background
+					{
+					; Create virtual canvas
+					Canvas:={}, Canvas.SetCapacity(Px:=CanvasWidth*CanvasHeight)
+					Loop, %Px% ; Initialize virtual canvas to transparent green
+						Canvas[A_Index-1,"RR"]:=0, Canvas[A_Index-1,"GG"]:=255, Canvas[A_Index-1,"BB"]:=0, Canvas[A_Index-1,"AA"]:=0
+					; Composite PVR SubTextures onto Canvas
+					Loop, % Cnt
+						{
+						Idxi:=Idx+A_Index-1
+						this._CompositeUP(this.DataBlocks[Idxi,"SubTexture"],this.DataBlocks[Idxi,"TargetX"],this.DataBlocks[Idxi,"TargetY"],this.DataBlocks[Idxi,"Width"],this.DataBlocks[Idxi,"Height"],Canvas,CanvasWidth,CanvasHeight)
+						}
+					If PalObj.Count() ; We already have a palette
+						this.FrameData[Index]:=this._ConvertFrameToPaletted(Canvas,this.Palette,Histo)
+					Else ; We will need to quantize the frame
+						{
+						UPFrames[Index]:=Canvas ; Store Canvas as an unpaletted frame for later use
+						; Start feeding pixels from Canvas into quantizer
+						For k,v in Canvas
+							Quant.AddColor(v["RR"],v["GG"],v["BB"],v["AA"])
+						}
+					}
 				}
 			}
-		; Quantize colors
-		Console.Send("ColorCount = " Quant.GetColorCount() "`r`n","I")
-		Quant.Quantize(256)
-		Console.Send("Total Error: " Quant.GetTotalError() "`r`n","I")
-		; Store generated palette
-		this.Palette:=PalObj:=Quant.GetPaletteObj()
-		; Convert unpaletted frames to paletted
-		For k,v in UPFrames
+		If !PalObj.Count() ; If we are quantizing the frames
 			{
-			this.FrameData[k].SetCapacity(v.Count())
-			For k2,v2 in v
-				this.FrameData[k,k2]:=Quant.GetQuantizedColorIndex(v2["RR"],v2["GG"],v2["BB"],v2["AA"])
+			; Quantize colors
+			Console.Send("ColorCount = " Quant.GetColorCount() "`r`n","I")
+			Quant.Quantize(256)
+			Console.Send("Total Error: " Quant.GetTotalError() "`r`n","I")
+			; Store generated palette
+			this.Palette:=PalObj:=Quant.GetPaletteObj()
+			; Convert unpaletted frames to paletted
+			For k,v in UPFrames
+				{
+				this.FrameData[k].SetCapacity(v.Count())
+				For k2,v2 in v
+					this.FrameData[k,k2]:=Quant.GetQuantizedColorIndex(v2["RR"],v2["GG"],v2["BB"],v2["AA"])
+				}
+			Quant:=""
 			}
-		Quant:=""
+		Else ; We have already applied the specified palette.
+			Settins.ReplacePalette:=""
+		;~ Loop, % this.Stats.CountOfFrameEntries
+			;~ {
+			;~ Index:=A_Index-1
+			;~ If !IsObject(this.FrameData[Index])
+				;~ {
+				;~ Console.Send("Generating FrameData for Frame " Index ".`r`n","I")
+				;~ this.FrameData[Index]:=ObjFullyClone(this.FrameData[FrameEntriesLUT[Index]])
+				;~ }
+			;~ }
 		this.Stats.TransColorIndex:=0
 		this.Stats.ShadowColorIndex:=1
 		Console.Send("PVR SubBlocks converted to frames in " (QPC(1)-tic) " sec.`r`n","-I")
@@ -3281,7 +3405,7 @@ class ProcessBAM extends DebugBAM{
 			}
 		;~ Console.Send("`r`n")
 	}
-	_CompositeUC(ByRef Frame,X,Y,W,H,ByRef Canvas,CanvasWidth,CanvasHeight){
+	_CompositeUP(ByRef Frame,X,Y,W,H,ByRef Canvas,CanvasWidth,CanvasHeight){
 		Col:=0, ShiftDown:=Y
 		For k,Px in Frame
 			{
