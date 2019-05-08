@@ -15,7 +15,7 @@ Process, Priority, , A
 SetBatchLines, -1
 OnError("Traceback")
 
-Global PS_Version:="v0.0.0.5a"
+Global PS_Version:="v0.0.0.6a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -450,12 +450,17 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			}
 		If (this.Stats.Signature="BAM ") AND (this.Stats.Version="V2  ")
 			{
+			this.Stats.RLEColorIndex:=0
 			this._ReadV2FrameEntries()
 			this._ReadCycleEntries()
 			this._ReadPalette()
 			this._ReadV2FrameLookupTable()
 			this._ReadDataBlocks()
-			throw Exception("Reading PVRZ files is not yet supported...  The first file to read would be:  " this.DataBlocks[0,"PVRZFile"],,"`n`n" Traceback())
+			this._ReadPVRZPages()
+			this._ConvertPVRSubBlocksToFrames()
+			this.Stats.Version:="V1  "
+			this._UpdateStats()
+			;throw Exception("Reading PVRZ files is not yet supported...  The first file to read would be:  " this.DataBlocks[0,"PVRZFile"],,"`n`n" Traceback())
 			}
 		Else
 			{
@@ -521,7 +526,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			}
 		Quant:=""
 		this.Stats.Signature:="BAM " ; It is no longer an unpaletted BAM!
-		this.Stats.CountOfPaletteEntries:=GetKeyCount(this.Palette)
+		this.Stats.CountOfPaletteEntries:=this.Palette.Count()
 		this._CalcSizeOfFrameData(this.DataMem.Position)
 		If (this.Stats.SizeOfFrameData>BytesRead)
 			Console.Send("SizeOfFrameData>BytesReadFrameData (" this.Stats.SizeOfFrameData ">" BytesRead ")`r`n","W")
@@ -605,14 +610,14 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			}
 		If !IsObject(PalObj) AND (Settings.ReplacePaletteMethod<>"Quant")
 			PalObj:=this._ReadBAMDPalette("",FirstFramePath)
-		If GetKeyCount(PalObj)	; We loaded a palette from somewhere
+		If PalObj.Count()	; We loaded a palette from somewhere
 			{
 			this.Palette:=PalObj
 			Histo:=""
 			For k,v in UPFrames
 				this.FrameData[k]:=this._ConvertFrameToPaletted(v,PalObj,Histo)
 			}
-		Else If GetKeyCount(UPFrames)	; No palette but unpaletted data so we need to quantize
+		Else If UPFrames.Count()	; No palette but unpaletted data so we need to quantize
 			{
 			Quant:=New PS_Quantization()
 			Quant.AddReservedColor(0,255,0,0)
@@ -635,7 +640,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			Quant:=""
 			}
 		
-		this.Stats.CountOfPaletteEntries:=GetKeyCount(this.Palette)
+		this.Stats.CountOfPaletteEntries:=this.Palette.Count()
 		this.Stats.CountOfFrameEntries:=this.FrameEntries.Count()
 		this.Stats.CountOfFrames:=this.FrameData.Count()
 		this.Stats.CountOfFLTEntries:=this.FrameLookupTable.Count()
@@ -820,7 +825,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 				this.CycleEntries[key,"IndexIntoFLT"]:=0
 				}
 			}
-		this.Stats.CountOfPaletteEntries:=GetKeyCount(this.Palette)
+		this.Stats.CountOfPaletteEntries:=this.Palette.Count()
 		this.Stats.CountOfFrameEntries:=this.FrameEntries.Count()
 		this.Stats.CountOfFrames:=this.FrameData.Count()
 		this.Stats.CountOfFLTEntries:=this.FrameLookupTable.Count()
@@ -911,7 +916,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			BMP.GetBMPObjects(FrameObj,PalObj,FrameObjUP,Width,Height)
 			this.FrameEntries[FrameNum,"Width"]:=Width, this.FrameEntries[FrameNum,"Height"]:=Height
 			this.FrameEntries[FrameNum,"RLE"]:=0, this.FrameEntries[FrameNum,"FramePointer"]:=FrameNum
-			If GetKeyCount(FrameObj) AND (Settings.ReplacePaletteMethod="Force")
+			If (FrameObj.Count()) AND (Settings.ReplacePaletteMethod="Force")
 				this.FrameData[FrameNum]:=FrameObj
 			Else
 				UPFrames[FrameNum]:=FrameObjUP
@@ -936,13 +941,13 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 		;~ Console.Send(SequenceLine "`r`n","-W")
 		Line:=StrSplit(SequenceLine,A_Space,"f")
 		;Console.Send("bla " st_printArr(Line) "`r`n","-W")
-		this.CycleEntries[Idx:=GetKeyCount(this.CycleEntries),"CountOfFrameIndices"]:=Line.Length()
-		this.CycleEntries[Idx,"IndexIntoFLT"]:=GetKeyCount(this.FrameLookupTable)
+		this.CycleEntries[(Idx:=this.CycleEntries.Count()),"CountOfFrameIndices"]:=Line.Length()
+		this.CycleEntries[Idx,"IndexIntoFLT"]:=this.FrameLookupTable.Count()
 		Loop, % Line.Length()
 			{
 			Idx:=Line[A_Index]
 			Idx+=0
-			this.FrameLookupTable[GetKeyCount(this.FrameLookupTable)]:=Idx
+			this.FrameLookupTable[this.FrameLookupTable.Count()]:=Idx
 			}
 	}
 	_WriteBAM(){
@@ -1089,6 +1094,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			this.FrameEntries[Index,"CenterY"]:=this.DataMem.ReadShort(), Console.Send(FormatStr(this.FrameEntries[Index,"CenterY"],A_Space,8,"C"),"-I")
 			this.FrameEntries[Index,"IndexIntoDataBlocks"]:=this.DataMem.ReadWORD(), Console.Send(FormatStr(this.FrameEntries[Index,"IndexIntoDataBlocks"],A_Space,20,"C"),"-I")
 			this.FrameEntries[Index,"CountOfDataBlocks"]:=this.DataMem.ReadWORD(), Console.Send(RTrim(FormatStr(this.FrameEntries[Index,"CountOfDataBlocks"],A_Space,18,"C")) "`r`n","-I")
+			this.FrameEntries[Index,"FramePointer"]:=Index
 			If (this.FrameEntries[Index,"Width"]>255)
 				Console.Send("Frame " Index " Width>255: " this.FrameEntries[Index,"Width"] "`r`n","W")
 			Else If (this.FrameEntries[Index,"Width"]<1)
@@ -1212,14 +1218,13 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 	}
 	_ReadV2FrameLookupTable(){ ;;;;; BAM V2 Frame Lookup Table ;;;;;
 		tic:=QPC(1)
-		this.FrameLookupTable:={},
+		this.FrameLookupTable:={}
 		Loop, % this.CycleEntries.Count()
 			{
 			Index:=A_Index-1
 			Loop, % this.CycleEntries[Index,"CountOfFrameIndices"]
 				this.FrameLookupTable[this.FrameLookupTable.Count()]:=this.CycleEntries[Index,"IndexIntoFLT"]+A_Index-1
 			}
-		this.PrintFrameLookupTable()
 		Console.Send("BAM Frame Lookup Table generated in " (QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_WriteFrameLookupTable(){ ;;;;; BAM V1 Frame Lookup Table ;;;;;
@@ -1298,6 +1303,108 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			this.DataBlocks[Index,"TargetY"]:=this.DataMem.ReadDWORD(), Console.Send(FormatStr(this.DataBlocks[Index,"TargetY"],A_Space,8,"C") "`r`n","-I")
 			}
 		Console.Send("BAM Data Blocks read in " (QPC(1)-tic) " sec.`r`n","-I")
+	}
+	_ReadPVRZPages(){
+		tic:=QPC(1)
+		PVR:={}
+		SplitPath, % (this.InputPath), , InDir
+		Path:=RegExReplace(InDir,"\\$")
+		
+		
+		Loop, % this.Stats.CountOfDataBlocks
+			{
+			Index:=A_Index-1
+			file:=this.DataBlocks[Index,"PVRZFile"]
+			;;; FAKE IT TO TEST ;;;
+			file:="MOS1193.PVRZ"
+			
+			
+			If !PVR.HasKey(file)
+				{
+				If !FileExist(Path "\" file)
+					throw Exception(file " was referenced but could not be found in '" Path "\'.",,"All relevant PVRZ files should be placed in the same directory as the the BAM V2 file.`n`n" Traceback())
+				PVR[file]:=New PSPVR()
+				PVR[file].LoadPVRFromFile(Path "\" file)
+				}
+			this.DataBlocks[Index,"SubTexture"]:=PVR[file].ExtractSubTexture(0,this.DataBlocks[Index,"SourceX"],this.DataBlocks[Index,"SourceY"],this.DataBlocks[Index,"Width"],this.DataBlocks[Index,"Height"])
+			}
+		For k,v in PVR
+			v:=""
+		Console.Send("PVR SubBlocks read in " (QPC(1)-tic) " sec.`r`n","-I")
+	}
+	_ConvertPVRSubBlocksToFrames(){
+		tic:=QPC(1)
+		; Initialize space to store paletted and unpaletted frame data
+		this.FrameData:={}, this.FrameData.SetCapacity(this.Stats.CountOfFrameEntries)
+		UPFrames:={}, UPFrames.SetCapacity(this.Stats.CountOfFrameEntries)
+		; Initialize Quantizer
+		Quant:=New PS_Quantization()
+		Quant.AddReservedColor(0,255,0,0)
+		Quant.AddReservedColor(0,0,0,0)
+		Loop, % this.Stats.CountOfFrameEntries
+			{
+			Index:=A_Index-1
+			W:=this.FrameEntries[Index,"Width"]
+			H:=this.FrameEntries[Index,"Height"]
+			X:=this.FrameEntries[Index,"CenterX"]
+			Y:=this.FrameEntries[Index,"CenterY"]
+			Idx:=this.FrameEntries[Index,"IndexIntoDataBlocks"]
+			Cnt:=this.FrameEntries[Index,"CountOfDataBlocks"]
+			If (Cnt=0)
+				this.FrameData[Index]:=[]
+			Else
+				{
+				; Determine true canvas size if there is a mismatch btwn dimensions in FrameEntries and DataBlocks
+				CanvasWidth:=CanvasHeight:=1
+				Loop, % Cnt
+					{
+					CanvasWidth:=(this.DataBlocks[Idx+A_Index-1,"Width"]+this.DataBlocks[Idx+A_Index-1,"TargetX"]>CanvasWidth?this.DataBlocks[Idx+A_Index-1,"Width"]+this.DataBlocks[Idx+A_Index-1,"TargetX"]:CanvasWidth)
+					CanvasHeight:=(this.DataBlocks[Idx+A_Index-1,"Height"]+this.DataBlocks[Idx+A_Index-1,"TargetY"]>CanvasHeight?this.DataBlocks[Idx+A_Index-1,"Height"]+this.DataBlocks[Idx+A_Index-1,"TargetY"]:CanvasHeight)
+					}
+				If (CanvasWidth<>W) OR (CanvasHeight<>H)
+					{
+					Console.Send("Calculated canvas dimensions (" CanvasWidth "x" CanvasHeight ") do not match frame dimensions (" W "x" H  ") for FrameEntry " Index ".`r`n","W")
+					W:=this.FrameEntries[Index,"Width"]:=CanvasWidth:=(CanvasWidth<W?W:CanvasWidth)
+					H:=this.FrameEntries[Index,"Height"]:=CanvasHeight:=(CanvasHeight<H?H:CanvasHeight)
+					}
+				; Create virtual canvas
+				Canvas:={}, Canvas.SetCapacity(Px:=CanvasWidth*CanvasHeight)
+				Loop, %Px% ; Initialize virtual canvas to transparent green
+					Canvas[A_Index-1,"RR"]:=0, Canvas[A_Index-1,"GG"]:=255, Canvas[A_Index-1,"BB"]:=0, Canvas[A_Index-1,"AA"]:=0
+				; Composite PVR SubTextures onto Canvas
+				Loop, % Cnt
+					{
+					Idxi:=Idx+A_Index-1
+					FrameUP:=this.DataBlocks[Idxi,"SubTexture"]
+					sX:=this.DataBlocks[Idxi,"TargetX"]
+					sY:=this.DataBlocks[Idxi,"TargetY"]
+					sW:=this.DataBlocks[Idxi,"Width"]
+					sH:=this.DataBlocks[Idxi,"Height"]
+					this._CompositeUC(FrameUP,sX,sY,sW,sH,Canvas,CanvasWidth,CanvasHeight)
+					}
+				UPFrames[UPFrames.Count()]:=Canvas ; Store Canvas as an unpaletted frame for later use
+				; Start feeding pixels from Canvas into quantizer
+				For k,v in Canvas
+					Quant.AddColor(v["RR"],v["GG"],v["BB"],v["AA"])
+				}
+			}
+		; Quantize colors
+		Console.Send("ColorCount = " Quant.GetColorCount() "`r`n","I")
+		Quant.Quantize(256)
+		Console.Send("Total Error: " Quant.GetTotalError() "`r`n","I")
+		; Store generated palette
+		this.Palette:=PalObj:=Quant.GetPaletteObj()
+		; Convert unpaletted frames to paletted
+		For k,v in UPFrames
+			{
+			this.FrameData[k].SetCapacity(v.Count())
+			For k2,v2 in v
+				this.FrameData[k,k2]:=Quant.GetQuantizedColorIndex(v2["RR"],v2["GG"],v2["BB"],v2["AA"])
+			}
+		Quant:=""
+		this.Stats.TransColorIndex:=0
+		this.Stats.ShadowColorIndex:=1
+		Console.Send("PVR SubBlocks converted to frames in " (QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_WriteFrameData(){ ;;;;; BAM V1 Frame Data ;;;;;
 		tic:=QPC(1)
@@ -1438,10 +1545,11 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 		;~ this.Stats.Version:=this.Stats.Version
 		;~ this.Stats.FileSize:=this.Stats.FileSize
 		;~ this.Stats.RLEColorIndex:=this.Stats.RLEColorIndex
+		this.Stats.CountOfPaletteEntries:=this.Palette.Count()	;this.Palette.MaxIndex()+1
 		this._CalcTransColorIndex()
 		this._CalcShadowColorIndex()
-		
-		this.Stats.CountOfPaletteEntries:=GetKeyCount(this.Palette)	;this.Palette.MaxIndex()+1
+		If (this.Stats.RLEColorIndex="")
+			this.Stats.RLEColorIndex:=0
 		
 		this.Stats.PaletteHasAlpha:=0
 		Loop, % (this.Stats.CountOfPaletteEntries)
@@ -1721,7 +1829,7 @@ class ImBAMIO extends CompressBAM{
 			PalObj:=PAL.ImportPaletteFromFile(InputFile)
 		Else If (Address) AND (Bytes)	; If we are loading palette from memory
 			PalObj:=PAL.ImportPaletteFromMem(Address,Bytes)
-		Else If !IsObject(PalObj) OR !GetKeyCount(PalObj) ; Load default "paletted" palette
+		Else If !IsObject(PalObj) OR !(PalObj.Count()) ; Load default "paletted" palette
 			PalObj:=this._GetRefPal()
 		; Otherwise PalObj has been given and is to be used as the palette
 		If (Method="Force")
@@ -2079,7 +2187,7 @@ class CompressBAM extends ProcessBAM{
 				this.FrameData[Index,Index2]:=ReindexArray[this.FrameData[Index,Index2]]
 				}
 			}
-		this.Stats.CountOfPaletteEntries:=GetKeyCount(this.Palette)	;this.Palette.MaxIndex()+1
+		this.Stats.CountOfPaletteEntries:=this.Palette.Count()	;this.Palette.MaxIndex()+1
 		Return NumRemoved
 	}
 	_DropUnusedPaletteEntriesFromEnd(){
@@ -2089,7 +2197,7 @@ class CompressBAM extends ProcessBAM{
 			Console.Send("Palette Entry " Index " is unused." "`r`n","I")
 			this.Palette.RemoveAt(Index), NumRemoved++
 			}
-		this.Stats.CountOfPaletteEntries:=GetKeyCount(this.Palette) ;this.Palette.MaxIndex()+1
+		this.Stats.CountOfPaletteEntries:=this.Palette.Count() ;this.Palette.MaxIndex()+1
 		Return NumRemoved
 	}
 	_CalcPaletteEntryDuplicate(Entry:=0){
@@ -2206,11 +2314,11 @@ class CompressBAM extends ProcessBAM{
 			{
 			If (this.Stats.CountOfPaletteEntries<256)
 				{
-				Index:=GetKeyCount(this.Palette)	;this.Palette.MaxIndex()+1
+				Index:=this.Palette.Count()	;this.Palette.MaxIndex()+1
 				this._SetPaletteEntry(Index,0,0,0,0)
 				this._MovePaletteEntry(Index,1)
 				this.Stats.ShadowColorIndex:=1
-				this.Stats.CountOfPaletteEntries:=GetKeyCount(this.Palette)	;this.Palette.MaxIndex()+1
+				this.Stats.CountOfPaletteEntries:=this.Palette.Count()	;this.Palette.MaxIndex()+1
 				Return 1
 				}
 			Loop, % this.Stats.CountOfPaletteEntries
@@ -3173,6 +3281,20 @@ class ProcessBAM extends DebugBAM{
 			}
 		;~ Console.Send("`r`n")
 	}
+	_CompositeUC(ByRef Frame,X,Y,W,H,ByRef Canvas,CanvasWidth,CanvasHeight){
+		Col:=0, ShiftDown:=Y
+		For k,Px in Frame
+			{
+			Canvas[ShiftDown*CanvasWidth+X+Col]:=Px
+			Col++
+			If (Col=W)
+				{
+				Col:=0
+				ShiftDown+=1
+				}
+			}
+		
+	}
 	_PadFrameToDims(Frame,Width,Height){
 		InsertRight:=(Width-this.FrameEntries[Frame,"Width"]), InsertRight:=(InsertRight<0?0:InsertRight)
 		InsertBottom:=(Height-this.FrameEntries[Frame,"Height"]), InsertBottom:=(InsertBottom<0?0:InsertBottom)
@@ -3318,7 +3440,7 @@ class ProcessBAM extends DebugBAM{
 				Idx:=A_Index-1, Line:={}
 				Loop, %Width%
 					Line.InsertAt(1,this.FrameData[Index,A_Index-1+Idx*Width])
-				NewFrameObj.InsertAt(GetKeyCount(NewFrameObj),Line*)
+				NewFrameObj.InsertAt(NewFrameObj.Count(),Line*)
 				}
 			this.FrameData[Index]:=NewFrameObj
 			}
@@ -3401,6 +3523,8 @@ class DebugBAM{
 		this.PrintPalette()
 		this.PrintFrameLookupTable()
 		this.PrintFrameData()
+		If this.HasKey("DataBlocks")
+			this.PrintDataBlocks()
 	}
 	PrintStats(){
 		Msg:="[Stats]`r`n"
@@ -3485,6 +3609,24 @@ class DebugBAM{
 				}
 			Console.Send(Msg "`r`n")
 			}
+	}
+	PrintDataBlocks(){
+		Msg:="[Data Blocks]`r`n"
+		Msg.="  " FormatStr("DataBlock",A_Space,10,"C") FormatStr("PVRZpage",A_Space,9,"C") FormatStr("PVRZFile",A_Space,13,"C") FormatStr("SourceX",A_Space,8,"C") FormatStr("SourceY",A_Space,8,"C") FormatStr("Width",A_Space,6,"C") FormatStr("Height",A_Space,7,"C") FormatStr("TargetX",A_Space,8,"C") RTrim(FormatStr("TargetY",A_Space,8,"C"),A_Space) "`r`n"
+		Loop, % this.Stats.CountOfDataBlocks
+			{
+			Index:=A_Index-1
+			Msg.="  " FormatStr(Index,A_Space,10,"C")
+			Msg.=FormatStr(this.DataBlocks[Index,"PVRZpage"],A_Space,9,"C")
+			Msg.=FormatStr(this.DataBlocks[Index,"PVRZFile"],A_Space,13,"C")
+			Msg.=FormatStr(this.DataBlocks[Index,"SourceX"],A_Space,8,"C")
+			Msg.=FormatStr(this.DataBlocks[Index,"SourceY"],A_Space,8,"C")
+			Msg.=FormatStr(this.DataBlocks[Index,"Width"],A_Space,6,"C")
+			Msg.=FormatStr(this.DataBlocks[Index,"Height"],A_Space,7,"C")
+			Msg.=FormatStr(this.DataBlocks[Index,"TargetX"],A_Space,8,"C")
+			Msg.=FormatStr(this.DataBlocks[Index,"TargetY"],A_Space,8,"C") "`r`n"
+			}
+		Console.Send(Msg "`r`n")
 	}
 }
 
@@ -3577,78 +3719,78 @@ SetSettings(){
 
 ;;;;; Core Background Functions ;;;;;
 
-ThrowMsg(Options="",Title="",Text="",Timeout=""){
-	If (Title="") AND (Text="") AND (Timeout=""){
-		Gui +OwnDialogs
-		MsgBox % Options
-		}
-	Else{
-		Gui +OwnDialogs
-		MsgBox, % Options , % Title , % Text , % Timeout
-		}
-}
+;~ ThrowMsg(Options="",Title="",Text="",Timeout=""){
+	;~ If (Title="") AND (Text="") AND (Timeout=""){
+		;~ Gui +OwnDialogs
+		;~ MsgBox % Options
+		;~ }
+	;~ Else{
+		;~ Gui +OwnDialogs
+		;~ MsgBox, % Options , % Title , % Text , % Timeout
+		;~ }
+;~ }
 
 QPC(R:=0){ ; By SKAN, http://goo.gl/nf7O4G, CD:01/Sep/2014 | MD:01/Sep/2014
   Static P:=0, F:=0, Q:=DllCall("QueryPerformanceFrequency","Int64P",F)
   Return !DllCall("QueryPerformanceCounter","Int64P",Q)+(R?(P:=Q)/F:(Q-P)/F) 
 }
 
-GetKeyCount(Arr){
-	If IsObject(Arr)
-		Return NumGet(&Arr+4*A_PtrSize)
-	Return 0
-}
+;~ GetKeyCount(Arr){
+	;~ If IsObject(Arr)
+		;~ Return NumGet(&Arr+4*A_PtrSize)
+	;~ Return 0
+;~ }
 
-Num2Bin(n,bits=0) {     ; Return LS "bits" of binary representation of "n"
-   b:=""
-   IfLess bits,1, Loop  ; n < 0: leading 1's are omitted. -1 -> 1, 0 -> 0
-      {
-         b := n&1 b
-         n := n>>1
-         If (n = n>>1)
-            Break
-      }
-   Else Loop %bits%
-      {
-         b := n&1 b
-         n := n>>1
-      }
-   Return b
-}
+;~ Num2Bin(n,bits=0) {     ; Return LS "bits" of binary representation of "n"
+   ;~ b:=""
+   ;~ IfLess bits,1, Loop  ; n < 0: leading 1's are omitted. -1 -> 1, 0 -> 0
+      ;~ {
+         ;~ b := n&1 b
+         ;~ n := n>>1
+         ;~ If (n = n>>1)
+            ;~ Break
+      ;~ }
+   ;~ Else Loop %bits%
+      ;~ {
+         ;~ b := n&1 b
+         ;~ n := n>>1
+      ;~ }
+   ;~ Return b
+;~ }
 
-Bin2Num(bits,neg="") {  ; Return number converted from the binary "bits" string
-   n = 0                ; If "neg" is not 0 or empty, 11..1 assumed on the left
-   Loop Parse, bits
-      n += n + A_LoopField
-   Return n - !(neg<1)*(1<<StrLen(bits))
-}
+;~ Bin2Num(bits,neg="") {  ; Return number converted from the binary "bits" string
+   ;~ n = 0                ; If "neg" is not 0 or empty, 11..1 assumed on the left
+   ;~ Loop Parse, bits
+      ;~ n += n + A_LoopField
+   ;~ Return n - !(neg<1)*(1<<StrLen(bits))
+;~ }
 
-GetBits(num,start:=0,count:=1,bits:=8){
-	bits:=Num2Bin(num,bits)
-	rbits:=SubStr(bits,start+1,count)
-	Return Bin2Num(rbits)
-}
+;~ GetBits(num,start:=0,count:=1,bits:=8){
+	;~ bits:=Num2Bin(num,bits)
+	;~ rbits:=SubStr(bits,start+1,count)
+	;~ Return Bin2Num(rbits)
+;~ }
 
-PackByte(Size,Bits*){
-	tmp:=""
-	For k,v in Bits
-		tmp.=Num2Bin(v,(Size[k]=""?1:Size[k]))
-	Return Bin2Num(tmp)
-}
+;~ PackByte(Size,Bits*){
+	;~ tmp:=""
+	;~ For k,v in Bits
+		;~ tmp.=Num2Bin(v,(Size[k]=""?1:Size[k]))
+	;~ Return Bin2Num(tmp)
+;~ }
 
-String2Array(Str){
-	Arr:=StrSplit(Str)
-	For k,v in Arr
-		Arr[k]:=Asc(v)
-	Return Arr
-}
+;~ String2Array(Str){
+	;~ Arr:=StrSplit(Str)
+	;~ For k,v in Arr
+		;~ Arr[k]:=Asc(v)
+	;~ Return Arr
+;~ }
 
-strI(str){ ; https://github.com/Masonjar13/AHK-Library/blob/master/Lib/strI.ahk
-    VarSetCapacity(nStr,sLen:=strLen(str))
-    Loop, %sLen%
-        nStr.=SubStr(str,sLen--,1)
-    Return nStr
-}
+;~ strI(str){ ; https://github.com/Masonjar13/AHK-Library/blob/master/Lib/strI.ahk
+    ;~ VarSetCapacity(nStr,sLen:=strLen(str))
+    ;~ Loop, %sLen%
+        ;~ nStr.=SubStr(str,sLen--,1)
+    ;~ Return nStr
+;~ }
 
 st_printArr(array, depth=5, indentLevel=""){
 	list:=""
@@ -3664,13 +3806,13 @@ st_printArr(array, depth=5, indentLevel=""){
    return rtrim(list)
 }
 
-ObjFullyClone(obj){	; https://autohotkey.com/board/topic/103411-cloned-object-modifying-original-instantiation/?p=638500
-    nobj:=ObjClone(obj)
-    For k,v in nobj
-        If IsObject(v)
-            nobj[k]:=ObjFullyClone(v)
-    Return nobj
-}
+;~ ObjFullyClone(obj){	; https://autohotkey.com/board/topic/103411-cloned-object-modifying-original-instantiation/?p=638500
+    ;~ nobj:=ObjClone(obj)
+    ;~ For k,v in nobj
+        ;~ If IsObject(v)
+            ;~ nobj[k]:=ObjFullyClone(v)
+    ;~ Return nobj
+;~ }
 
 FormatStr(String:="",Filler:="",Length:=0,Justify:="R"){
 	tmp:=""

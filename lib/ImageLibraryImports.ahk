@@ -10,6 +10,10 @@
 ;;;;;	PS_GIF	;;;;;
 #Include, PS_GIF.ahk
 
+;;;;;	PS_PVR	;;;;;
+#Include, PS_PVR.ahk
+
 ;;;;;	PS_Quantization	;;;;;
 #Include, PS_Quantization.ahk
 #Include, quick_sort_array_no_recursion.ahk
+
