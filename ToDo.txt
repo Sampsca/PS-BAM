@@ -1,6 +1,6 @@
 	Include % inc/dec of final file size.
 Allow zero (0) pixel frames.
-Drop sequences with no frames
+	Drop sequences with no frames
 	Enforce minimum size on very small BAMs with short palettes
 	Implement offset autocorrect for various INI settings.
 	Implement offset inc/dec/set as per bamresize.
@@ -11,7 +11,7 @@ Fix bug when converting large images to GIF
 
 
 	Implement CLI - including multiple input processing
-Improve Terminal Output
+	Improve Terminal Output
 	Normalize feedback classifications
 	Compile new zlib
 	Compile new zopfli
@@ -26,10 +26,11 @@ Binary overlap engine
 	Write out of bounds 'throw' error
 
 Add BAM V2 support
-Add BAMU support
+	Add BAMU support
 Better investigate BAMU header structure
-Add BAMD support
-Add import frames from naming scheme
+Add custom save option to 32-bit RGBA BAMU
+	Add BAMD support
+	Add import frames from naming scheme
 Load Palette from another BAM/BAMC
 
 	Testing of individual/combinations of individual components.
@@ -43,4 +44,4 @@ Emulate multithreading based on count of processor cores and user variable.
 	Allow SaveAs BAMD
 	Allow export frames in desired format (missing higher bit depths for BMPs)
 
-Implement better exception handling
+	Implement better exception handling

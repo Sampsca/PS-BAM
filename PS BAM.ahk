@@ -15,7 +15,7 @@ Process, Priority, , A
 SetBatchLines, -1
 OnError("Traceback")
 
-Global PS_Version:="v0.0.0.6a"
+Global PS_Version:="v0.0.0.7a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -136,7 +136,7 @@ SetCompressionProfile(){
 			Settings.Compress:=1, Settings.FixPaletteColorErrors:=1, Settings.AutodetectPalettedBAM:=0, Settings.DropDuplicatePaletteEntries:=1, Settings.DropUnusedPaletteEntries:=1, Settings.SearchTransColor:=1, Settings.ForceTransColor:=1, Settings.AlphaCutoff:=10, Settings.AllowShortPalette:=1, Settings.TrimFrameData:=1, Settings.ExtraTrimBuffer:=2, Settings.ExtraTrimDepth:=3, Settings.ReduceFrameRowLT:=1, Settings.ReduceFrameColumnLT:=1, Settings.ReduceFramePixelLT:=1, Settings.DropDuplicateFrameData:=1, Settings.DropUnusedFrameData:=1, Settings.IntelligentRLE:=1, Settings.MaxRLERun:=255, Settings.FindBestRLEIndex:=1, Settings.DropDuplicateFrameEntries:=1, Settings.DropUnusedFrameEntries:=1, Settings.AdvancedFLTCompression:=1, Settings.FLTSanityCutoff:=5040, Settings.DropEmptyCycleEntries:=1, Settings.AdvancedZlibCompress:=2, Settings.zopfliIterations:=1000
 		Else If (Arr[A_Index]="Safe")
 			Settings.Compress:=1, Settings.FixPaletteColorErrors:=1, Settings.AutodetectPalettedBAM:=1, Settings.DropDuplicatePaletteEntries:=0, Settings.DropUnusedPaletteEntries:=0, Settings.SearchTransColor:=1, Settings.ForceTransColor:=0, Settings.ForceShadowColor:=0, Settings.AlphaCutoff:=10, Settings.AllowShortPalette:=0, Settings.TrimFrameData:=1, Settings.ExtraTrimBuffer:=0, Settings.ExtraTrimDepth:=0, Settings.ReduceFrameRowLT:=1, Settings.ReduceFrameColumnLT:=1, Settings.ReduceFramePixelLT:=1, Settings.DropDuplicateFrameData:=1, Settings.DropUnusedFrameData:=1, Settings.IntelligentRLE:=1, Settings.MaxRLERun:=254, Settings.FindBestRLEIndex:=0, Settings.DropDuplicateFrameEntries:=1, Settings.DropUnusedFrameEntries:=1, Settings.AdvancedFLTCompression:=1, Settings.FLTSanityCutoff:=720, Settings.AdvancedZlibCompress:=0
-		Else If (Arr[A_Index]="Quick")
+		Else If (Arr[A_Index]="Quick") OR (Arr[A_Index]="Fast")
 			Settings.Compress:=1, Settings.FixPaletteColorErrors:=1, Settings.AutodetectPalettedBAM:=1, Settings.DropDuplicatePaletteEntries:=1, Settings.DropUnusedPaletteEntries:=1, Settings.SearchTransColor:=1, Settings.ForceTransColor:=1, Settings.ForceShadowColor:=0, Settings.AlphaCutoff:=10, Settings.AllowShortPalette:=1, Settings.TrimFrameData:=1, Settings.ExtraTrimBuffer:=2, Settings.ExtraTrimDepth:=3, Settings.ReduceFrameRowLT:=1, Settings.ReduceFrameColumnLT:=1, Settings.ReduceFramePixelLT:=1, Settings.DropDuplicateFrameData:=1, Settings.DropUnusedFrameData:=1, Settings.IntelligentRLE:=1, Settings.MaxRLERun:=254, Settings.FindBestRLEIndex:=0, Settings.DropDuplicateFrameEntries:=1, Settings.DropUnusedFrameEntries:=1, Settings.AdvancedFLTCompression:=1, Settings.FLTSanityCutoff:=1, Settings.DropEmptyCycleEntries:=1, Settings.AdvancedZlibCompress:=1
 		Else If (Arr[A_Index]="None")
 			Settings.Compress:=0
@@ -503,7 +503,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 				}
 			Else	; Frame Data IS RLE
 				throw Exception("Frame " Index " is RLE'd but bit depths >8 can not have RLE!",,"`n`n" Traceback())
-			ByteCount:=(UPFrames[Index].MaxIndex()=""?0:UPFrames[Index].MaxIndex()+1)
+			ByteCount:=UPFrames[Index].Count()  ;ByteCount:=(UPFrames[Index].MaxIndex()=""?0:UPFrames[Index].MaxIndex()+1)
 			If (ByteCount<>PixelCount)
 				Console.Send("Frame " Index " is " ByteCount " pixels long but was expected to be " PixelCount " pixels!`r`n","W")
 			}
@@ -583,7 +583,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 					}
 				}
 			}
-		Loop, % (UPFrames.MaxIndex()+1)	; Compensate for missing frames by adding frame of 1 trans pixel
+		Loop, % UPFrames.Count() ;(UPFrames.MaxIndex()+1)	; Compensate for missing frames by adding frame of 1 trans pixel
 			{
 			key:=A_Index-1
 			If !IsObject(UPFrames[key])
@@ -598,7 +598,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 				this.FrameEntries[key,"FramePointer"]:=key
 				}
 			}
-		Loop, % (this.CycleEntries.MaxIndex()+1)	; Compensate for missing sequences by adding empty sequence
+		Loop, % this.CycleEntries.Count() ;(this.CycleEntries.MaxIndex()+1)	; Compensate for missing sequences by adding empty sequence
 			{
 			key:=A_Index-1
 			If !IsObject(this.CycleEntries[key])
@@ -800,7 +800,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 				}
 			}
 		Quant:=""
-		Loop, % (this.FrameData.MaxIndex()+1)	; Compensate for missing frames by adding frame of 1 (trans) pixel
+		Loop, % this.FrameData.Count() ;(this.FrameData.MaxIndex()+1)	; Compensate for missing frames by adding frame of 1 (trans) pixel
 			{
 			key:=A_Index-1
 			If !IsObject(this.FrameData[key])
@@ -815,7 +815,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 				this.FrameEntries[key,"FramePointer"]:=key
 				}
 			}
-		Loop, % (this.CycleEntries.MaxIndex()+1)	; Compensate for missing sequences by adding empty sequence
+		Loop, % this.CycleEntries.Count() ;(this.CycleEntries.MaxIndex()+1)	; Compensate for missing sequences by adding empty sequence
 			{
 			key:=A_Index-1
 			If !IsObject(this.CycleEntries[key])
@@ -1276,7 +1276,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 						Break
 					}
 				}
-			ByteCount:=(this.FrameData[Index].MaxIndex()=""?0:this.FrameData[Index].MaxIndex()+1)
+			ByteCount:=this.FrameData[Index].Count() ;(this.FrameData[Index].MaxIndex()=""?0:this.FrameData[Index].MaxIndex()+1)
 			If (ByteCount<>PixelCount)
 				Console.Send("Frame " Index " is " ByteCount " bytes long but was expected to be " PixelCount " bytes!`r`n","W")
 			}
@@ -1417,8 +1417,8 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			;~ this.DataMem.Seek(this.FrameEntries[Index,"OffsetToFrameData"],0)
 			If !(this.FrameEntries[FrameDataEntry,"RLE"]) AND (FrameDataEntry<>"")	; Frame Data is NOT RLE and has an associated Frame Entry
 				{
-				If (PixelCount<>(this.FrameData[Index].MaxIndex()=""?0:this.FrameData[Index].MaxIndex()+1))
-					throw Exception("Frame " Index " is " (this.FrameData[Index].MaxIndex()=""?0:this.FrameData[Index].MaxIndex()+1) " bytes long but was expected to be " PixelCount " bytes!",,"FrameDataEntry=" FrameDataEntry "`n`n" Traceback())
+				If (PixelCount<>(Cnt:=this.FrameData[Index].Count())) ;(this.FrameData[Index].MaxIndex()=""?0:this.FrameData[Index].MaxIndex()+1))
+					throw Exception("Frame " Index " is " Cnt " bytes long but was expected to be " PixelCount " bytes!",,"FrameDataEntry=" FrameDataEntry "`n`n" Traceback())
 				Loop, % PixelCount
 					{
 					Index2:=A_Index-1
@@ -1427,7 +1427,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 				}
 			Else	; Frame Data IS RLE
 				{
-				Loop, % this.FrameData[Index].MaxIndex()+1
+				Loop, % this.FrameData[Index].Count() ;MaxIndex()+1
 					{
 					Index2:=A_Index-1
 					this.DataMem.WriteUChar(this.FrameData[Index,Index2])
@@ -1558,7 +1558,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			If (this.Palette[Index,"AA"]>0) AND (this.Palette[Index,"AA"]<>"")
 				this.Stats.PaletteHasAlpha:=1
 			}
-		this.Stats.CountOfFrameEntries:=this.FrameEntries.MaxIndex()+1
+		this.Stats.CountOfFrameEntries:=this.FrameEntries.Count() ;MaxIndex()+1
 		this.Stats.RLE:=0
 		Loop, % this.Stats.CountOfFrameEntries
 			{
@@ -1566,9 +1566,9 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			If (this.FrameEntries[Index,"RLE"]=1)
 				this.Stats.RLE:=1
 			}
-		this.Stats.CountOfCycles:=this.CycleEntries.MaxIndex()+1
-		this.Stats.CountOfFLTEntries:=this.FrameLookupTable.MaxIndex()+1
-		this.Stats.CountOfFrames:=this.FrameData.MaxIndex()+1
+		this.Stats.CountOfCycles:=this.CycleEntries.Count() ;MaxIndex()+1
+		this.Stats.CountOfFLTEntries:=this.FrameLookupTable.Count() ;MaxIndex()+1
+		this.Stats.CountOfFrames:=this.FrameData.Count() ;MaxIndex()+1
 		this.Stats.OffsetToHeader:=0
 		this.Stats.SizeOfHeader:=24
 		this.Stats.OffsetToFrameEntries:=this.Stats.SizeOfHeader
@@ -1584,7 +1584,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 		Loop, % (this.Stats.CountOfFrames)
 			{
 			Index:=A_Index-1
-			this.Stats.SizeOfFrameData+=(this.FrameData[Index].MaxIndex()+1)
+			this.Stats.SizeOfFrameData+=(this.FrameData[Index].Count()) ;MaxIndex()+1
 			}
 		this.Stats.FileSize:=this.Stats.SizeOfHeader+this.Stats.SizeOfFrameEntries+this.Stats.SizeOfCycleEntries+this.Stats.SizeOfPalette+this.Stats.SizeOfFLT+this.Stats.SizeOfFrameData
 		this._UpdateFrameEntriesOffsets()
@@ -1604,7 +1604,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			Loop, % (this.FrameEntries[Index,"FramePointer"])
 				{
 				Index2:=A_Index-1
-				temp+=(this.FrameData[Index2].MaxIndex()+1)
+				temp+=(this.FrameData[Index2].Count()) ;MaxIndex()+1
 				}
 			this.FrameEntries[Index,"OffsetToFrameData"]:=temp
 			;~ Console.Send("Frame Entry: " Index ", FramePointer: " this.FrameEntries[Index,"FramePointer"] ", Start Offset: " this.Stats.OffsetToFrameData ", TotalOffset: " temp "`r`n","I")
@@ -2119,7 +2119,7 @@ class CompressBAM extends ProcessBAM{
 	}
 	_IsPalettePaletted(ByRef Pal,CountOfPaletteEntriesUsed:=256,Threshold:=0){
 		RefPalObj:=this._GetRefPal()
-		If (CountOfPaletteEntriesUsed>Count:=(Pal.MaxIndex()-Pal.MinIndex()+1))
+		If (CountOfPaletteEntriesUsed>(Count:=Pal.Count())) ;If (CountOfPaletteEntriesUsed>Count:=(Pal.MaxIndex()-Pal.MinIndex()+1))
 			CountOfPaletteEntriesUsed:=Count
 		Dist:=0
 		Loop, % CountOfPaletteEntriesUsed
@@ -2155,7 +2155,7 @@ class CompressBAM extends ProcessBAM{
 		Loop, % this.Stats.CountOfFrames
 			{
 			Index:=A_Index-1
-			Loop, % this.FrameData[Index].MaxIndex()+1
+			Loop, % this.FrameData[Index].Count() ;MaxIndex()+1
 				{
 				Index2:=A_Index-1
 				Index3:=A_Index-2
@@ -2181,7 +2181,7 @@ class CompressBAM extends ProcessBAM{
 		Loop, % this.Stats.CountOfFrames
 			{
 			Index:=A_Index-1
-			Loop, % this.FrameData[Index].MaxIndex()+1
+			Loop, % this.FrameData[Index].Count() ;MaxIndex()+1
 				{
 				Index2:=A_Index-1
 				this.FrameData[Index,Index2]:=ReindexArray[this.FrameData[Index,Index2]]
@@ -2236,7 +2236,7 @@ class CompressBAM extends ProcessBAM{
 		Loop, % this.Stats.CountOfFrames
 			{
 			Index:=A_Index-1
-			Loop, % this.FrameData[Index].MaxIndex()+1
+			Loop, % this.FrameData[Index].Count() ;MaxIndex()+1
 				{
 				Index2:=A_Index-1
 				this.FrameData[Index,Index2]:=ReindexArray[this.FrameData[Index,Index2]]
@@ -2374,7 +2374,7 @@ class CompressBAM extends ProcessBAM{
 		Loop, % this.Stats.CountOfFrames
 			{
 			Index:=A_Index-1
-			Loop, % this.FrameData[Index].MaxIndex()+1
+			Loop, % this.FrameData[Index].Count() ;MaxIndex()+1
 				{
 				Index2:=A_Index-1
 				this.FrameData[Index,Index2]:=ReindexArray[this.FrameData[Index,Index2]]
@@ -2426,7 +2426,7 @@ class CompressBAM extends ProcessBAM{
 			Entry:=this._GetFrameData1stFrameEntry(Index)
 			If (this.FrameEntries[Entry,"RLE"]=0)
 				{
-				BytesFrameData:=(this.FrameData[Index].MaxIndex()=""?0:this.FrameData[Index].MaxIndex())+1
+				BytesFrameData:=this.FrameData[Index].Count()+1 ;(this.FrameData[Index].MaxIndex()=""?0:this.FrameData[Index].MaxIndex())+1
 				SizeFrameData:=this.FrameEntries[Entry,"Width"]*this.FrameEntries[Entry,"Height"]
 				If (BytesFrameData>SizeFrameData)
 					BytesRemoved+=this.FrameData[Index].RemoveAt(SizeFrameData,BytesFrameData-SizeFrameData), Console.Send(BytesRemoved " extra bytes were dropped from Frame " Index "." "`r`n","I")
@@ -2672,8 +2672,8 @@ class CompressBAM extends ProcessBAM{
 		Loop, % Entry
 			{
 			Index:=A_Index-1
-			ByteCount:=this.FrameData[Index].MaxIndex()+1
-			If (ByteCount<>this.FrameData[Entry].MaxIndex()+1)
+			ByteCount:=this.FrameData[Index].Count() ;MaxIndex()+1
+			If (ByteCount<>this.FrameData[Entry].Count()) ;(ByteCount<>this.FrameData[Entry].MaxIndex()+1)
 				Continue
 			Loop, % ByteCount
 				{
@@ -2725,13 +2725,13 @@ class CompressBAM extends ProcessBAM{
 			Index:=A_Index-1
 			this.FrameEntries[Index,"FramePointer"]:=ReindexArray[this.FrameEntries[Index,"FramePointer"]]
 			}
-		this.Stats.CountOfFrames:=this.FrameData.MaxIndex()+1
+		this.Stats.CountOfFrames:=this.FrameData.Count() ;MaxIndex()+1
 		Return FramesDropped
 		}
 	_RLESize(Frame:=0, RLEColorIndex:="", Set:=0){
 		RLEData:={}, compressedCharCount:=0, NewBytes:=0
 		RLEColorIndex:=(RLEColorIndex=""?this.Stats.RLEColorIndex:RLEColorIndex)
-		Loop, % this.FrameData[Frame].MaxIndex()+1
+		Loop, % this.FrameData[Frame].Count() ;MaxIndex()+1
 			{
 			Index:=A_Index-1
 			If (this.FrameData[Frame,Index]=RLEColorIndex)
@@ -2763,7 +2763,7 @@ class CompressBAM extends ProcessBAM{
 		If (Settings.MaxRLERun=255)
 			{
 			RLEData2:={}, compressedCharCount:=0, NewBytes:=0
-			Loop, % this.FrameData[Frame].MaxIndex()+1
+			Loop, % this.FrameData[Frame].Count() ;MaxIndex()+1
 				{
 				Index:=A_Index-1
 				If (this.FrameData[Frame,Index]=RLEColorIndex)
@@ -2792,14 +2792,14 @@ class CompressBAM extends ProcessBAM{
 				RLEData2[NewBytes]:=RLEColorIndex, NewBytes++
 				RLEData2[NewBytes]:=compressedCharCount-1, NewBytes++
 				}
-			If (RLEData2.MaxIndex()+1<=RLEData.MaxIndex()+1)
+			If (RLEData2.Count()<=RLEData.Count()) ;(RLEData2.MaxIndex()+1<=RLEData.MaxIndex()+1)
 				RLEData:=RLEData2
 			Else If (Set=1)
 				Console.Send("Frame " Frame " uses RLE runs >254.  This may cause issues for BAMWorkshop." "`r`n","W")
 			}
-		If (Set=1) AND (RLEData.MaxIndex()+1<this.FrameData[Frame].MaxIndex()+1)
+		If (Set=1) AND (RLEData.Count()<this.FrameData[Frame].Count()) ;(RLEData.MaxIndex()+1<this.FrameData[Frame].MaxIndex()+1)
 			this.FrameData[Frame]:=RLEData
-		Return RLEData.MaxIndex()+1
+		Return RLEData.Count() ;MaxIndex()+1
 	}
 	_FindBestRLEColorIndex(){
 		Console.Send("Searching for best possible RLEColorIndex.  This could take some time...`r`n","-W")
@@ -2814,7 +2814,7 @@ class CompressBAM extends ProcessBAM{
 			Loop, % this.Stats.CountOfFrames
 				{
 				Frame:=A_Index-1
-				unRLE:=this.FrameData[Frame].MaxIndex()+1
+				unRLE:=this.FrameData[Frame].Count() ;MaxIndex()+1
 				RLE:=this._RLESize(Frame,CurrentColorIndex,0)
 				SizeOfTry+=(RLE<unRLE?RLE:unRLE)
 				}
@@ -2832,7 +2832,7 @@ class CompressBAM extends ProcessBAM{
 		Loop, % this.Stats.CountOfFrames
 			{
 			Frame:=A_Index-1
-			unRLE:=this.FrameData[Frame].MaxIndex()+1
+			unRLE:=this.FrameData[Frame].Count() ;MaxIndex()+1
 			RLE:=this._RLESize(Frame,this.Stats.RLEColorIndex,1)
 			If (RLE<unRLE)
 				{
@@ -2904,7 +2904,7 @@ class CompressBAM extends ProcessBAM{
 			Index:=A_Index-1
 			this.FrameLookupTable[Index]:=ReindexArray[this.FrameLookupTable[Index]]
 			}
-		this.Stats.CountOfFrameEntries:=this.FrameEntries.MaxIndex()+1
+		this.Stats.CountOfFrameEntries:=this.FrameEntries.Count() ;MaxIndex()+1
 		Return EntriesDropped
 		}
 	_DropEmptyCycleEntries(){
@@ -3663,7 +3663,7 @@ SetSettings(){
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;;;;; Compression Settings ;;;;;
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	Settings.CompressionProfile:=""				; | Max | Recommended | Safe | Quick | None |	; (is position dependent!!!)
+	Settings.CompressionProfile:=""				; | Max | Recommended | Safe | Quick | Fast | None |	; (is position dependent!!!)
 	Settings.FixPaletteColorErrors:=1
 	Settings.AutodetectPalettedBAM:=0
 	Settings.AutodetectPalettedThreshold:=500	; 14100 will identify vanilla off-paletted palettes as paletted.  500 will identify BW1 palette colors as paletted.
