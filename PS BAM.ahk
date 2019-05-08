@@ -15,7 +15,7 @@ Process, Priority, , A
 SetBatchLines, -1
 OnError("Traceback")
 
-Global PS_Version:="v0.0.0.8a"
+Global PS_Version:="v0.0.0.9a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -2279,22 +2279,33 @@ class CompressBAM extends ProcessBAM{
 		Loop, % this.Stats.CountOfFrames
 			{
 			Index:=A_Index-1
-			Loop, % this.FrameData[Index].Count() ;MaxIndex()+1
+			Loop, % this.FrameData[Index].Count()
 				{
-				Index2:=A_Index-1
-				Index3:=A_Index-2
-				If (this.FrameData[Index,Index2]=Entry) AND (!(this.FrameEntries[Index,"RLE"]) OR (this.FrameData[Index,Index3]<>this.Stats.TransColorIndex))
+				If (this.FrameData[Index,A_Index-1]=Entry) AND (!(this.FrameEntries[Index,"RLE"]) OR (this.FrameData[Index,A_Index-2]<>this.Stats.TransColorIndex))
 					Return 1
 				}
 			}
 		Return 0
 	}
 	_DropUnusedPaletteEntries(){
-		ReindexArray:={}, NumRemoved:=0, Realign:=0
-		Loop, % (this.Stats.CountOfPaletteEntries)
+		; Determine which palette entries are used
+		PalUsageLUT:={}, PalUsageLUT.SetCapacity(this.Stats.CountOfPaletteEntries)
+		Loop, % this.Stats.CountOfPaletteEntries
+			PalUsageLUT[A_Index-1]:=0
+		Loop, % this.Stats.CountOfFrames
 			{
 			Index:=A_Index-1
-			If !(this._isPaletteEntryUsed(Index)) AND (Index<>this.Stats.TransColorIndex) AND (Index<>this.Stats.ShadowColorIndex)	; don't remove TransColorIndex or ShadowColorIndex!
+			Loop, % this.FrameData[Index].Count()
+				{
+				If !(this.FrameEntries[Index,"RLE"]) OR (this.FrameData[Index,A_Index-2]<>this.Stats.TransColorIndex)
+					PalUsageLUT[this.FrameData[Index,A_Index-1]]:=1
+				}
+			}
+		; Drop unused palette entries from Palette
+		NumRemoved:=Realign:=0, ReindexArray:={}, ReindexArray.SetCapacity(this.Stats.CountOfPaletteEntries)
+		For Index,val in PalUsageLUT
+			{
+			If !val AND (Index<>this.Stats.TransColorIndex) AND (Index<>this.Stats.ShadowColorIndex)	; don't remove TransColorIndex or ShadowColorIndex!
 				{
 				Console.Send("Palette Entry " Index " is unused." "`r`n","I")
 				this.Palette.RemoveAt(Index-NumRemoved), NumRemoved++
@@ -2302,41 +2313,42 @@ class CompressBAM extends ProcessBAM{
 			Else
 				ReindexArray[Index]:=Realign++
 			}
+		; Remap FrameData to point to adjusted Palette Entries
 		Loop, % this.Stats.CountOfFrames
 			{
 			Index:=A_Index-1
-			Loop, % this.FrameData[Index].Count() ;MaxIndex()+1
+			Loop, % this.FrameData[Index].Count()
 				{
 				Index2:=A_Index-1
 				this.FrameData[Index,Index2]:=ReindexArray[this.FrameData[Index,Index2]]
 				}
 			}
-		this.Stats.CountOfPaletteEntries:=this.Palette.Count()	;this.Palette.MaxIndex()+1
+		this.Stats.CountOfPaletteEntries:=this.Palette.Count()
 		Return NumRemoved
 	}
 	_DropUnusedPaletteEntriesFromEnd(){
+		; Determine which palette entries are used
+		PalUsageLUT:={}, PalUsageLUT.SetCapacity(this.Stats.CountOfPaletteEntries)
+		Loop, % this.Stats.CountOfPaletteEntries
+			PalUsageLUT[A_Index-1]:=0
+		Loop, % this.Stats.CountOfFrames
+			{
+			Index:=A_Index-1
+			Loop, % this.FrameData[Index].Count()
+				{
+				If !(this.FrameEntries[Index,"RLE"]) OR (this.FrameData[Index,A_Index-2]<>this.Stats.TransColorIndex)
+					PalUsageLUT[this.FrameData[Index,A_Index-1]]:=1
+				}
+			}
+		; Drop unused palette entries from end of Palette
 		NumRemoved:=0
-		While !(this._isPaletteEntryUsed(Index:=this.Palette.MaxIndex())) AND (Index<>this.Stats.TransColorIndex) AND (Index<>this.Stats.ShadowColorIndex)	; don't remove TransColorIndex or ShadowColorIndex!
+		While !(PalUsageLUT[Index:=this.Palette.MaxIndex()]) AND (Index<>this.Stats.TransColorIndex) AND (Index<>this.Stats.ShadowColorIndex)	; don't remove TransColorIndex or ShadowColorIndex!
 			{
 			Console.Send("Palette Entry " Index " is unused." "`r`n","I")
 			this.Palette.RemoveAt(Index), NumRemoved++
 			}
-		this.Stats.CountOfPaletteEntries:=this.Palette.Count() ;this.Palette.MaxIndex()+1
+		this.Stats.CountOfPaletteEntries:=this.Palette.Count()
 		Return NumRemoved
-	}
-	_CalcPaletteEntryDuplicate(Entry:=0){
-		R:=this.Palette[Entry,"RR"], G:=this.Palette[Entry,"GG"], B:=this.Palette[Entry,"BB"], A:=this.Palette[Entry,"AA"]
-		Loop, % Entry
-			{
-			Index:=A_Index-1
-			RR:=this.Palette[Index,"RR"], GG:=this.Palette[Index,"GG"], BB:=this.Palette[Index,"BB"], AA:=this.Palette[Index,"AA"]
-			If (RR=R) AND (GG=G) AND (BB=B) AND (AA=A)
-				{
-				Console.Send("Palette Entry " Entry " is a duplicate of Entry " Index ".	(" R ", " G ", " B ", " A ")=(" RR ", " GG ", " BB ", " AA ")" "`r`n","I")
-				Return Index	; If duplicate, returns value of Palette Entry it is a duplicate of.  Only lower palette entries are returned.
-				}
-			}
-		Return Entry	; If not a duplicate, return itself.
 	}
 	_SetOpaquePalette0(){
 		Loop, % this.Stats.CountOfPaletteEntries
@@ -2347,23 +2359,33 @@ class CompressBAM extends ProcessBAM{
 			}
 	}
 	_DropDuplicatePaletteEntries(){
-		ReindexArray:={}, NumRemoved:=0
+		; Set palette entries with Alapha=255 to Alpha=0 b/c of how alpha in BAM files are handled
 		this._SetOpaquePalette0()
-		Loop, % this.Stats.CountOfPaletteEntries
+		; Determine which palette entries are duplicates
+		NumRemoved:=0, PalUsageLUT:={}, PalUsageLUT.SetCapacity(this.Stats.CountOfPaletteEntries*2)
+		For Index,v in this.Palette
 			{
-			Index:=A_Index-1
-			Dupe:=this._CalcPaletteEntryDuplicate(Index)
-			ReindexArray[Index]:=Dupe
-			If (Dupe<>Index)
+			Key:="_" v["RR"] v["GG"] v["BB"] v["AA"]
+			If !PalUsageLUT.HasKey(Key) ; Is NOT a duplicate
+				{
+				PalUsageLUT[Key]:=Index
+				PalUsageLUT[Index]:=Index
+				}
+			Else ; Is a duplicate
+				{
+				PalUsageLUT[Index]:=PalUsageLUT[Key]
+				Console.Send("Palette Entry " Index " is a duplicate of Entry " PalUsageLUT[Key] ".	(" v["RR"] ", " v["GG"] ", " v["BB"] ", " v["A"] ")=(" v["RR"] ", " v["GG"] ", " v["BB"] ", " v["AA"] ")" "`r`n","I")
 				NumRemoved++
+				}
 			}
+		; Remove duplicate palette entries
 		Loop, % this.Stats.CountOfFrames
 			{
 			Index:=A_Index-1
-			Loop, % this.FrameData[Index].Count() ;MaxIndex()+1
+			Loop, % this.FrameData[Index].Count()
 				{
 				Index2:=A_Index-1
-				this.FrameData[Index,Index2]:=ReindexArray[this.FrameData[Index,Index2]]
+				this.FrameData[Index,Index2]:=PalUsageLUT[this.FrameData[Index,Index2]]
 				}
 			}
 		Return NumRemoved
@@ -2550,7 +2572,7 @@ class CompressBAM extends ProcessBAM{
 			Entry:=this._GetFrameData1stFrameEntry(Index)
 			If (this.FrameEntries[Entry,"RLE"]=0)
 				{
-				BytesFrameData:=this.FrameData[Index].Count()+1 ;(this.FrameData[Index].MaxIndex()=""?0:this.FrameData[Index].MaxIndex())+1
+				BytesFrameData:=this.FrameData[Index].Count() ;(this.FrameData[Index].MaxIndex()=""?0:this.FrameData[Index].MaxIndex())+1
 				SizeFrameData:=this.FrameEntries[Entry,"Width"]*this.FrameEntries[Entry,"Height"]
 				If (BytesFrameData>SizeFrameData)
 					BytesRemoved+=this.FrameData[Index].RemoveAt(SizeFrameData,BytesFrameData-SizeFrameData), Console.Send(BytesRemoved " extra bytes were dropped from Frame " Index "." "`r`n","I")
