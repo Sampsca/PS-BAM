@@ -15,7 +15,7 @@ Process, Priority, , A
 SetBatchLines, -1
 OnError("Traceback")
 
-Global PS_Version:="v0.0.0.10a"
+Global PS_Version:="v0.0.0.11a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -4019,7 +4019,7 @@ ArrayDropDuplicates(ByRef Array){	; Drop arrays contained within other arrays.
 	Dropped:=0, Offset:=1
 	Loop, % (Len:=Array.Count())
 		{
-		If (Offset>=Len)
+		If (Offset>Len)
 			Break
 		Loop, %Len%
 			If (A_Index<>Offset) AND ArrayContainsArray(Array[A_Index],Array[Offset])
