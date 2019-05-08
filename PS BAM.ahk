@@ -15,7 +15,7 @@ Process, Priority, , A
 SetBatchLines, -1
 OnError("Traceback")
 
-Global PS_Version:="v0.0.0.9a"
+Global PS_Version:="v0.0.0.10a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -2874,94 +2874,55 @@ class CompressBAM extends ProcessBAM{
 		this.Stats.CountOfFrames:=this.FrameData.Count() ;MaxIndex()+1
 		Return FramesDropped
 		}
-	_RLESize(Frame:=0, RLEColorIndex:="", Set:=0){
-		RLEData:={}, compressedCharCount:=0, NewBytes:=0
+	_RLESize(ByRef Frame,RLEColorIndex:=""){ ;;; Calculates the size of RLE'd data, even if it >= size of unRLE'd data ;;;
 		RLEColorIndex:=(RLEColorIndex=""?this.Stats.RLEColorIndex:RLEColorIndex)
-		Loop, % this.FrameData[Frame].Count() ;MaxIndex()+1
+		Size:=compressedCharCount:=0, MaxRLERun:=Settings.MaxRLERun
+		For Index,val in Frame
 			{
-			Index:=A_Index-1
-			If (this.FrameData[Frame,Index]=RLEColorIndex)
+			If (val=RLEColorIndex)
 				{
 				compressedCharCount++
-				If (compressedCharCount>Settings.MaxRLERun)
-					{
-					RLEData[NewBytes]:=RLEColorIndex, NewBytes++
-					RLEData[NewBytes]:=Settings.MaxRLERun, NewBytes++
-					compressedCharCount:=0
-					}
+				If (compressedCharCount>MaxRLERun)
+					compressedCharCount:=0, Size+=2
 				}
 			Else
 				{
-				If (compressedCharCount>0)
-					{
-					RLEData[NewBytes]:=RLEColorIndex, NewBytes++
-					RLEData[NewBytes]:=compressedCharCount-1, NewBytes++
-					compressedCharCount:=0
-					}
-				RLEData[NewBytes]:=this.FrameData[Frame,Index], NewBytes++
+				If compressedCharCount
+					compressedCharCount:=0, Size+=2
+				Size++
 				}
 			}
-		If (compressedCharCount>0)
-			{
-			RLEData[NewBytes]:=RLEColorIndex, NewBytes++
-			RLEData[NewBytes]:=compressedCharCount-1, NewBytes++
-			}
-		If (Settings.MaxRLERun=255)
-			{
-			RLEData2:={}, compressedCharCount:=0, NewBytes:=0
-			Loop, % this.FrameData[Frame].Count() ;MaxIndex()+1
-				{
-				Index:=A_Index-1
-				If (this.FrameData[Frame,Index]=RLEColorIndex)
-					{
-					compressedCharCount++
-					If (compressedCharCount>Settings.MaxRLERun-1)
-						{
-						RLEData2[NewBytes]:=RLEColorIndex, NewBytes++
-						RLEData2[NewBytes]:=Settings.MaxRLERun-1, NewBytes++
-						compressedCharCount:=0
-						}
-					}
-				Else
-					{
-					If (compressedCharCount>0)
-						{
-						RLEData2[NewBytes]:=RLEColorIndex, NewBytes++
-						RLEData2[NewBytes]:=compressedCharCount-1, NewBytes++
-						compressedCharCount:=0
-						}
-					RLEData2[NewBytes]:=this.FrameData[Frame,Index], NewBytes++
-					}
-				}
-			If (compressedCharCount>0)
-				{
-				RLEData2[NewBytes]:=RLEColorIndex, NewBytes++
-				RLEData2[NewBytes]:=compressedCharCount-1, NewBytes++
-				}
-			If (RLEData2.Count()<=RLEData.Count()) ;(RLEData2.MaxIndex()+1<=RLEData.MaxIndex()+1)
-				RLEData:=RLEData2
-			Else If (Set=1)
-				Console.Send("Frame " Frame " uses RLE runs >254.  This may cause issues for BAMWorkshop." "`r`n","W")
-			}
-		If (Set=1) AND (RLEData.Count()<this.FrameData[Frame].Count()) ;(RLEData.MaxIndex()+1<this.FrameData[Frame].MaxIndex()+1)
-			this.FrameData[Frame]:=RLEData
-		Return RLEData.Count() ;MaxIndex()+1
+		If compressedCharCount
+			Size+=2
+		Return Size
 	}
-	_FindBestRLEColorIndex(){
+	_FindBestRLEColorIndex(){ ;;; Find the RLE Color index that achieves the best compression ;;;
 		Console.Send("Searching for best possible RLEColorIndex.  This could take some time...`r`n","-W")
-		BestRLEColorIndex:=this.Stats.RLEColorIndex, BestTry:=9223372036854775807
+		; Determine which palette entries are used
+		PalUsageLUT:={}, PalUsageLUT.SetCapacity(this.Stats.CountOfPaletteEntries)
+		Loop, % this.Stats.CountOfPaletteEntries
+			PalUsageLUT[A_Index-1]:=0
+		Loop, % this.Stats.CountOfFrames
+			{
+			Index:=A_Index-1
+			Loop, % this.FrameData[Index].Count()
+				{
+				If !(this.FrameEntries[Index,"RLE"]) OR (this.FrameData[Index,A_Index-2]<>this.Stats.TransColorIndex)
+					PalUsageLUT[this.FrameData[Index,A_Index-1]]:=1
+				}
+			}
+		; Find the best RLE color index
+		BestRLEColorIndex:=this.Stats.RLEColorIndex, BestTry:=4294967294 ; 4 gigs 
 		Loop, % this.Stats.CountOfPaletteEntries
 			{
-			CurrentColorIndex:=A_Index-1
-			SizeOfTry:=0
-			If (Settings.DropUnusedPaletteEntries<>1)
-				If !(this._isPaletteEntryUsed(CurrentColorIndex))
-					Continue
+			SizeOfTry:=0, CurrentColorIndex:=A_Index-1
+			If !PalUsageLUT[CurrentColorIndex] ; If palette entry is not used
+				Continue
 			Loop, % this.Stats.CountOfFrames
 				{
 				Frame:=A_Index-1
-				unRLE:=this.FrameData[Frame].Count() ;MaxIndex()+1
-				RLE:=this._RLESize(Frame,CurrentColorIndex,0)
+				unRLE:=this.FrameData[Frame].Count()
+				RLE:=this._RLESize(this.FrameData[Frame],CurrentColorIndex)
 				SizeOfTry+=(RLE<unRLE?RLE:unRLE)
 				}
 			If (SizeOfTry<BestTry)
@@ -2969,6 +2930,80 @@ class CompressBAM extends ProcessBAM{
 			}
 		Console.Send("BestRLEColorIndex=" BestRLEColorIndex "`r`n","I")
 		Return BestRLEColorIndex
+	}
+	_RLEFrame(Frame,RLEColorIndex:="",MaxRLERun:=""){
+		RLEColorIndex:=(RLEColorIndex=""?this.Stats.RLEColorIndex:RLEColorIndex)
+		MaxRLERun:=(MaxRLERun=""?Settings.MaxRLERun:MaxRLERun)
+		; RLE frame using MaxRLERun
+		RLEData:={}, RLEData.SetCapacity(this.FrameData[Frame].Count()), NewBytes:=compressedCharCount:=0
+		For Index,val in this.FrameData[Frame]
+			{
+			If (val=RLEColorIndex)
+				{
+				compressedCharCount++
+				If (compressedCharCount>MaxRLERun)
+					{
+					RLEData[NewBytes]:=RLEColorIndex, NewBytes++
+					RLEData[NewBytes]:=MaxRLERun, NewBytes++
+					compressedCharCount:=0
+					}
+				}
+			Else
+				{
+				If compressedCharCount
+					{
+					RLEData[NewBytes]:=RLEColorIndex, NewBytes++
+					RLEData[NewBytes]:=compressedCharCount-1, NewBytes++
+					compressedCharCount:=0
+					}
+				RLEData[NewBytes]:=val, NewBytes++
+				}
+			}
+		If compressedCharCount
+			{
+			RLEData[NewBytes]:=RLEColorIndex, NewBytes++
+			RLEData[NewBytes]:=compressedCharCount-1, NewBytes++
+			}
+		; RLE frame using MaxRLERun-1 if MaxRLERun=255 to see if 255 was any better
+		If (MaxRLERun=255)
+			{
+			RLEData2:={}, RLEData.SetCapacity(this.FrameData[Frame].Count()), NewBytes:=compressedCharCount:=0
+			For Index,val in this.FrameData[Frame]
+				{
+				If (val=RLEColorIndex)
+					{
+					compressedCharCount++
+					If (compressedCharCount>MaxRLERun-1)
+						{
+						RLEData2[NewBytes]:=RLEColorIndex, NewBytes++
+						RLEData2[NewBytes]:=MaxRLERun-1, NewBytes++
+						compressedCharCount:=0
+						}
+					}
+				Else
+					{
+					If compressedCharCount
+						{
+						RLEData2[NewBytes]:=RLEColorIndex, NewBytes++
+						RLEData2[NewBytes]:=compressedCharCount-1, NewBytes++
+						compressedCharCount:=0
+						}
+					RLEData2[NewBytes]:=val, NewBytes++
+					}
+				}
+			If compressedCharCount
+				{
+				RLEData2[NewBytes]:=RLEColorIndex, NewBytes++
+				RLEData2[NewBytes]:=compressedCharCount-1, NewBytes++
+				}
+			If (RLEData2.Count()<=RLEData.Count()) ; MaxRLERun of 254 was at least as good as 255, so use it to be safer
+				RLEData:=RLEData2
+			Else
+				Console.Send("Frame " Frame " uses RLE runs >254.  This may cause issues for BAMWorkshop." "`r`n","W")
+			}
+		If (RLEData.Count()<this.FrameData[Frame].Count()) ; RLE improved compression
+			this.FrameData[Frame]:=RLEData
+		Return RLEData.Count()
 	}
 	_RLE(){
 		tic:=QPC(1)
@@ -2978,8 +3013,8 @@ class CompressBAM extends ProcessBAM{
 		Loop, % this.Stats.CountOfFrames
 			{
 			Frame:=A_Index-1
-			unRLE:=this.FrameData[Frame].Count() ;MaxIndex()+1
-			RLE:=this._RLESize(Frame,this.Stats.RLEColorIndex,1)
+			unRLE:=this.FrameData[Frame].Count()
+			RLE:=this._RLEFrame(Frame,this.Stats.RLEColorIndex,Settings.MaxRLERun)
 			If (RLE<unRLE)
 				{
 				For key, val in (this._GetFrameDataFrameEntries(Frame))

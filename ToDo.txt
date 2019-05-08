@@ -4,7 +4,7 @@ Allow zero (0) pixel frames.
 	Enforce minimum size on very small BAMs with short palettes
 	Implement offset autocorrect for various INI settings.
 	Implement offset inc/dec/set as per bamresize.
-Speed up RLE (current bottleneck)
+	Speed up RLE (current bottleneck)
 	Speed up unused palette entries (current bottleneck)
 Speed up GIF LZW compression (current bottleneck)
 Fix bug when converting large images to GIF
