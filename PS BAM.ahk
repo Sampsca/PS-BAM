@@ -1,5 +1,5 @@
 ﻿;
-; AutoHotkey Version: 1.1.30.03
+; AutoHotkey Version: 1.1.32.00
 ; Language:       English
 ; Platform:       Optimized for Windows 10
 ; Author:         Sam.
@@ -15,7 +15,7 @@ Process, Priority, , A
 SetBatchLines, -1
 OnError("Traceback")
 
-Global PS_Version:="v0.0.0.11a"
+Global PS_Version:="v0.0.0.12a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -1272,8 +1272,17 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 						Loop, % (count+1)
 							this.FrameData[Index,Indexi]:=byte, Indexi++
 						}
+					;Console.Send("Tell=" this.DataMem.Tell() A_Tab "Length=" this.DataMem.Length A_Tab "Indexi=" Indexi A_Tab "PixelCount=" PixelCount "`r`n")
 					If (Indexi>=PixelCount)
 						Break
+					Else If (this.DataMem.Tell()>=this.DataMem.Length-1) ; 20191217 - Bytes have been truncated from the end of the last frame!  There are not enough pixels to reach PixelCount.
+						{
+						Console.Send("FrameData of Frame " Index " is too short to fill all " PixelCount " pixels. Remaining " PixelCount-Indexi " pixels will be filled with RLEColorIndex (" this.Stats["RLEColorIndex"] ").`r`n","W")
+						Loop, % PixelCount-Indexi
+							this.FrameData[Index,Indexi]:=0, Indexi++
+						;MsgBox % "End of file reached with " PixelCount-Indexi " pixels remaining."
+						Break
+						}
 					}
 				}
 			ByteCount:=this.FrameData[Index].Count() ;(this.FrameData[Index].MaxIndex()=""?0:this.FrameData[Index].MaxIndex()+1)
