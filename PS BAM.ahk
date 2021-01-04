@@ -1,5 +1,5 @@
 ﻿;
-; AutoHotkey Version: 1.1.32.00
+; AutoHotkey Version: 1.1.33.02
 ; Language:       English
 ; Platform:       Optimized for Windows 10
 ; Author:         Sam.
@@ -15,7 +15,9 @@ Process, Priority, , A
 SetBatchLines, -1
 OnError("Traceback")
 
-Global PS_Version:="v0.0.0.12a"
+try {
+
+Global PS_Version:="v0.0.0.13a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -35,7 +37,7 @@ If (Settings.MaxThreads>1)
 	Settings.LogFile:=""
 	}
 
-Global Console:=New PushLog("////////////////////////////////////////////////////////////`r`n// PS BAM " PS_Version ", Copyright (c) 2012-2019 Sam Schmitz ///`r`n////////////////////////////////////////////////////////////",Settings.LogFile,2)
+Global Console:=New PushLog("////////////////////////////////////////////////////////////`r`n// PS BAM " PS_Version ", Copyright (c) 2012-2021 Sam Schmitz ///`r`n////////////////////////////////////////////////////////////",Settings.LogFile,2)
 
 ;~ InPath:=A_ScriptDir "\mdr11207.bam"
 ;~ InPath:=A_ScriptDir "\CDMF4G12_orig.bam"
@@ -56,6 +58,16 @@ Console:=""
 Gdip_Shutdown(pToken)
 ExitApp
 
+	} catch e {
+		; throw { what: (IsFunc(A_ThisFunc)?"function: " A_ThisFunc "()":"") A_Tab (IsLabel(A_ThisLabel)?"label: " A_ThisLabel:""), file: A_LineFile, line: A_LineNumber, message: "", extra: ""}
+		Console.Send("Exception thrown!`n`nWhat	=	" e.what "`nFile	=	" e.file "`nLine	=	" e.line "`nMessage	=	" e.message "`nExtra	=	" e.extra "`r`n","E")
+		;ThrowMsg(16,"Error!","Exception thrown!`n`nWhat	=	" e.what "`nFile	=	" e.file "`nLine	=	" e.line "`nMessage	=	" e.message "`nExtra	=	" e.extra)
+		ExceptionErrorDlg(e)
+		Console:=""
+		Gdip_Shutdown(pToken)
+		ExitApp
+		}
+
 ProcessCLIArgOpt(){
 	Options:={}, OrigLog:=Settings.LogFile
 	For k, v in Settings
@@ -69,12 +81,14 @@ ProcessCLIArgOpt(){
 			Settings[option]:=parameter
 			If (option="CompressionProfile") AND (parameter<>"")
 				SetCompressionProfile()
+			Else If (option="OutPath")
+				Settings[option]:=RegExReplace(parameter,"\\$") ; Settings.OutPath must not end in a "\" 20201212
 			}
 		If (OrigLog<>Settings.LogFile)
 			{
 			Console.ModifySavePath(Settings.LogFile) ; was Console.SavePath:=Settings.LogFile
 			FormatTime, TimeString, ,MMMM dd, yyyy 'at' h:mm.ss tt
-			Console.Send("////////////////////////////////////////////////////////////`r`n// PS BAM " PS_Version ", Copyright (c) 2012-2019 Sam Schmitz ///`r`n////////////////////////////////////////////////////////////`r`nInitializing logging of errors and warnings on " TimeString ".`r`n","",-1)
+			Console.Send("////////////////////////////////////////////////////////////`r`n// PS BAM " PS_Version ", Copyright (c) 2012-2021 Sam Schmitz ///`r`n////////////////////////////////////////////////////////////`r`nInitializing logging of errors and warnings on " TimeString ".`r`n","",-1)
 			}
 		Console.Send("//////////////////// Settings ////////////////////`r`n","-I")
 		
@@ -123,6 +137,8 @@ ProcessCLIArgOpt(){
 				Console.Send("//////////////////////////////////////////////////`r`n","-E")
 				}
 			}
+		If !Instance["args"].Count() ; No input files found (20201231)
+			Console.Send("No input files were found.  Double check the directory, filename, and file extension.  If a wildcard was used in the input, ensure you are properly matching the desired files.`r`n","W")
 	Instance:=""
 }
 
@@ -161,6 +177,8 @@ GetThreadCount(){
 ProcessFile(Input,Output){
 	try {
 		tic:=QPC(1)
+		If InStr(Input,A_Quote)
+			throw Exception("The input filename " A_Quote Input A_Quote " contains invalid characters.  Because Windows is stupid, OutPath must NOT end in a slash (" A_Quote "\" A_Quote ") when passed to PS BAM as a parameter, so check that.  Otherwise, check your use of double quotes.",,"`n`n" Traceback())
 		BAM:=New PSBAM()
 		Console.DebugLevel:=Settings.DebugLevelL
 		SplitPath, Input, , , OutExtension
@@ -300,6 +318,8 @@ VerifyOutput(OriginalOutput){	; Saving files to the same folder and sometimes de
 				Settings.VerifyOutput:=0
 			OriginalMD5:=FileMD5(OriginalOutput,7)
 			FileCreateDir, %PS_Temp%
+			If !InStr(FileExist(PS_Temp),"D")
+				throw Exception("The output directory " A_Quote PS_Temp A_Quote " could not be created.`n`nFileExist() returned '" FileExist(PS_Temp) "'.`nErrorLevel=" ErrorLevel "`nA_LastError=" A_LastError,,"`n`n" Traceback())
 				;~ FileDelete, %PS_Temp%\*.*
 			SplitPath, OriginalOutput, OutFileName
 			SplitPath, OriginalOutput, OutFileName, OutDir, OutExtension, OutNameNoExt
@@ -327,14 +347,20 @@ VerifyOutput(OriginalOutput){	; Saving files to the same folder and sometimes de
 		}
 }
 GetOutPath(InPath){
+	InPath:=RegExReplace(InPath,"\\$") ; InPath must not end in a "\" 20201212
 	SplitPath, InPath, OutFileName, OutDir, OutExtension, OutNameNoExt, OutDrive
 	If (Settings.OutPath="")
 		OutPath:=RegExReplace(OutDir,"\\$") "\" OutNameNoExt "_c"
 	Else
 		{
 		OutPath:=RegExReplace(Settings.OutPath,"\\$")
+		If InStr(OutPath,A_Quote)
+			throw Exception("The output directory " A_Quote OutPath A_Quote " contains invalid characters.  Because Windows is stupid, OutPath must NOT end in a slash (" A_Quote "\" A_Quote ") when passed to PS BAM as a parameter (--OutPath), so check that.  Otherwise, check your use of double quotes.",,"`n`n" Traceback())
 		IfNotExist, %OutPath%
 			FileCreateDir, %OutPath%
+		If !InStr(FileExist(OutPath),"D")
+			throw Exception("The output directory " A_Quote OutPath A_Quote " could not be created.  Verify --OutPath is valid and does NOT end in a slash (" A_Quote "\" A_Quote ").`n`nFileExist() returned '" FileExist(OutPath) "'.`nErrorLevel=" ErrorLevel "`nA_LastError=" A_LastError,,"`n`n" Traceback())
+		; 20201213 Need to verify OutPath really exists.  Done 20201231
 		OutPath.="\" OutNameNoExt
 		}
 	;~ Settings.OutPathSpecific:=OutPath
@@ -348,6 +374,8 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 		SplitPath, InputPath, OutFileName
 		PS_Summary.=FormatStr(OutFileName,A_Space,20,"C") A_Space
 		file:=FileOpen(InputPath,"r-d")
+			If !IsObject(file)
+				throw Exception("The file " A_Quote InputPath A_Quote " could not be opened.`n`nA_LastError=" A_LastError,,"`n`n" Traceback())
 			this.Stats:={}
 			this.InputPath:=InputPath
 			this.Stats.OriginalFileSize:=file.Length, Console.Send("OriginalFileSize=" this.Stats.OriginalFileSize "`r`n","I")
@@ -370,6 +398,8 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 		SplitPath, InputPath, OutFileName
 		PS_Summary.=FormatStr(OutFileName,A_Space,20,"C") A_Space
 		file:=FileOpen(InputPath,"r-d")
+			If !IsObject(file)
+				throw Exception("The file " A_Quote InputPath A_Quote " could not be opened.`n`nA_LastError=" A_LastError,,"`n`n" Traceback())
 			file.Seek(0,0)
 			this.Stats:={}
 			this.InputPath:=InputPath
@@ -428,6 +458,8 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 		Else If (Settings.AdvancedZlibCompress=1) AND (Settings.Compress=1)
 			this._zlibCompressBAM()
 		file:=FileOpen(OutputPath,"w-d")
+			If !IsObject(file)
+				throw Exception("The file " A_Quote OutputPath A_Quote " could not be opened.`n`nA_LastError=" A_LastError,,"`n`n" Traceback())
 			file.RawWrite(this.GetAddress("Raw"),this.Stats.FileSize)
 			file.Close()
 		this.Delete("Raw"), this.DataMem:=""
@@ -1854,6 +1886,8 @@ class ExBAMIO extends ImBAMIO{
 		SplitPath, OutPath, , , , OutNameNoExt
 		FramePath:=OutPath "\" OutNameNoExt
 		FileCreateDir, %OutPath%
+		If !InStr(FileExist(OutPath),"D")
+			throw Exception("The output directory " A_Quote OutPath A_Quote " could not be created.  Verify --OutPath and input filename are valid, and that --OutPath does NOT end in a slash (" A_Quote "\" A_Quote ").`n`nFileExist() returned '" FileExist(OutPath) "'.`nErrorLevel=" ErrorLevel "`nA_LastError=" A_LastError,,"`n`n" Traceback())
 		Fmt:=StrSplit(Type,",")
 		OutExtension:=(Fmt[1]?Fmt[1]:"bmp")
 		Loop, % this.Stats.CountOfFrames
@@ -3824,7 +3858,7 @@ SetSettings(){
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;;;;;    Global Settings   ;;;;;
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	Settings.OutPath:=A_ScriptDir "\compressed"
+	Settings.OutPath:=A_ScriptDir "\compressed" ; Because Windows is stupid, OutPath must NOT end in a "\" when passed to PS BAM as a parameter.
 	;~ Settings.OutPathSpecific:=""
 	Settings.DebugLevelL:=1
 	Settings.DebugLevelP:=2
@@ -3892,7 +3926,7 @@ SetSettings(){
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;;;;; Additional Processing Settings ;;;;;
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	Settings.BAMProfile:=""				; | ItemIcon | Zero | Paperdoll | GroundIcon | DescriptionIconEE | ItemIconEE | SpellIcon | Spell |
+	Settings.BAMProfile:=""				; | ItemIcon | DescriptionIcon | Zero | Paperdoll | SpellIconEE | GroundIcon | DescriptionIconEE | ItemIconPST | GroundIconPST | SpellIcon | Spell |
 	Settings.Unify:=0					; | 0=Off | 1=On | 2=Square |
 	Settings.Montage:=""
 	Settings.ModXOffset:=0

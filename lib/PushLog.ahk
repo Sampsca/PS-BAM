@@ -135,6 +135,7 @@ class PushLog{
 			}
 	}
 	ModifySavePath(SavePath:=""){
+		Local
 		If (SavePath<>this.SavePath) ; It is changing
 			{
 			this._OSavePath.Close()

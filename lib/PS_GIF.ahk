@@ -14,13 +14,13 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;             PS_GIF             ;;;;;
-;;;;;  Copyright (c) 2018-2019 Sam.  ;;;;;
-;;;;;     Last Updated 20190501      ;;;;;
+;;;;;  Copyright (c) 2018-2020 Sam.  ;;;;;
+;;;;;     Last Updated 20201231      ;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 class PSGIF extends ExGIFIO{
 	LoadGIFFromFile(InputPath){
-		tic:=thsi._QPC(1)
+		tic:=this._QPC(1)
 		Console.Send("Path='" InputPath "'`r`n")
 		file:=FileOpen(InputPath,"r-d")
 			this.Stats:={}
@@ -31,13 +31,13 @@ class PSGIF extends ExGIFIO{
 			file.RawRead(this.GetAddress("Raw"),this.Stats.FileSize)
 			file.Close()
 		this.DataMem:=New MemoryFileIO(this.GetAddress("Raw"),this.Stats.FileSize)
-		Console.Send("GIF loaded into memory in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("GIF loaded into memory in " (this._QPC(1)-tic) " sec.`r`n","-I")
 		this._ReadGIF()
 		this.Raw:="", this.Delete("Raw"), this.DataMem:=""
-		Console.Send("Finished Loading GIF in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Finished Loading GIF in " (this._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	SaveGIFToFile(OutputPath){
-		tic:=thsi._QPC(1)
+		tic:=this._QPC(1)
 		Console.Send("Saving GIF to '" OutputPath "'`r`n","-W")
 		this.Raw:=" ", this.SetCapacity("Raw",this.Stats.FileSize), DllCall("RtlFillMemory","Ptr",this.GetAddress("Raw"),"UInt",this.Stats.FileSize,"UChar",0)
 		this.DataMem:=New MemoryFileIO(this.GetAddress("Raw"),this.Stats.FileSize)
@@ -46,10 +46,10 @@ class PSGIF extends ExGIFIO{
 			file.RawWrite(this.GetAddress("Raw"),this.Stats.FileSize)
 		file.Close()
 		this.Raw:="", this.Delete("Raw"), this.DataMem:=""
-		Console.Send("Finished Saving GIF in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Finished Saving GIF in " (this._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	LoadGIFFromMemory(Address,Size){
-		tic:=thsi._QPC(1)
+		tic:=this._QPC(1)
 		this.Stats:={}
 		;this.InputPath:=InputPath
 		this.Stats.OriginalFileSize:=Size, Console.Send("OriginalFileSize=" this.Stats.OriginalFileSize "`r`n","I")
@@ -59,22 +59,22 @@ class PSGIF extends ExGIFIO{
 		tmp.RawRead(this.GetAddress("Raw"),this.Stats.FileSize)
 		tmp:=""
 		this.DataMem:=New MemoryFileIO(this.GetAddress("Raw"),this.Stats.FileSize)
-		Console.Send("GIF loaded into memory in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("GIF loaded into memory in " (this._QPC(1)-tic) " sec.`r`n","-I")
 		this._ReadGIF()
 		this.Raw:="", this.Delete("Raw"), this.DataMem:=""
-		Console.Send("Finished Loading GIF in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Finished Loading GIF in " (this._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	SaveGIFToVar(Var){
-		tic:=thsi._QPC(1)
+		tic:=this._QPC(1)
 		VarSetCapacity(Var,this.Stats.FileSize,0)
 		this.DataMem:=New MemoryFileIO(&Var,this.Stats.FileSize)
 		this._WriteGIF()
 		this.DataMem:=""
-		Console.Send("Finished Saving GIF in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Finished Saving GIF in " (this._QPC(1)-tic) " sec.`r`n","-I")
 		Return this.Stats.FileSize
 	}
 	_ReadGIF(){
-		tic:=thsi._QPC(1)
+		tic:=this._QPC(1)
 		this._ReadGIFHeader()
 		this._ReadLogicalScreenDescriptor()
 		If this.LogicalScreenDescriptor.GlobalColorTableFlag
@@ -100,10 +100,10 @@ class PSGIF extends ExGIFIO{
 		If (flag=0x3B)	;;;;;	Trailer	;;;;;
 			Console.Send("EoF`r`n","-I")
 		
-		Console.Send("GIF read in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("GIF read in " (this._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_WriteGIF(){
-		tic:=thsi._QPC(1)
+		tic:=this._QPC(1)
 		this._WriteGIFHeader()
 		this._WriteLogicalScreenDescriptor()
 		If this.LogicalScreenDescriptor.GlobalColorTableFlag
@@ -122,7 +122,7 @@ class PSGIF extends ExGIFIO{
 				this._WriteImage(A_Index)
 		FinalSize:=this._WriteTailer()
 		this.Stats.FileSize:=FinalSize
-		Console.Send("GIF written in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("GIF written in " (this._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_ReadGIFHeader(){
 		;;;;;	Header Block	;;;;;
@@ -580,7 +580,7 @@ class PSGIF extends ExGIFIO{
 		Return ByteStream
 	}
 	_LZWCompress(ByRef IndexStream, LZWMinimumCodeSize){
-		tic:=thsi._QPC(1)
+		tic:=this._QPC(1)
 		CodeStream:={}, CodeStream.SetCapacity(IndexStream.Length()), VarSetCapacity(IndexBuffer,500,0), NewLZWMinimumCodeSize:=LZWMinimumCodeSize+1
 		; Initialize code table
 		CodeTable:=this._ClearCodeTable(LZWMinimumCodeSize)
@@ -633,11 +633,11 @@ class PSGIF extends ExGIFIO{
 		; Output end-of-information code
 		CodeStream.Push(this._Num2Bin(CodeTable["EoIC"],NewLZWMinimumCodeSize))
 		ByteStream:=this._PackBytes(CodeStream,LZWMinimumCodeSize)
-		Console.Send("Frame compressed in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Frame compressed in " (this._QPC(1)-tic) " sec.`r`n","-I")
 		Return ByteStream
 	}
 	_LZWDecompress(ByRef ByteStream,LZWMinimumCodeSize,CountUncompressedBytes:=1){ ; CountUncompressedBytes is an optional parameter that may be used to preallocate memory.  Width*Height is a good value to use for an LZW compressed GIF frame.
-		tic:=thsi._QPC(1)
+		tic:=this._QPC(1)
 		; turn ByteStream into BitStream
 		VarSetCapacity(BitStream,Len:=(f8:=(f:=(A_IsUnicode?2:1))*8)*(ByteLen:=ByteStream.Length())+13*f,0)
 		Loop, % ByteLen
@@ -692,7 +692,7 @@ class PSGIF extends ExGIFIO{
 				NewLZWMinimumCodeSize++
 			BitIdx-=NewLZWMinimumCodeSize
 			}
-		Console.Send("Frame decompressed in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Frame decompressed in " (this._QPC(1)-tic) " sec.`r`n","-I")
 		Return IndexStream
 	}
 }
@@ -711,7 +711,7 @@ class ExGIFIO extends ImGIFIO{
 			this.ExportFrame(A_Index,OutDir "\" OutNameNoExt "_" SubStr("00000" A_Index,-4) "." Ext,Ext,DV[1],DV[2])
 	}
 	ExportFrame(Idx,OutputPath,Format:="",BitDepth:=8,Version:=3){
-		tic:=thsi._QPC(1)
+		tic:=this._QPC(1)
 		If !Format
 			SplitPath, OutputPath, , , Format
 		StringLower, Format, Format
@@ -760,13 +760,13 @@ class ExGIFIO extends ImGIFIO{
 				}
 			VarSetCapacity(Raw,0), this.DataMem:=""
 			}
-		Console.Send("Finished exporting GIF frame #" Idx " in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Finished exporting GIF frame #" Idx " in " (this._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;;;;;	Warning:  This function assumes your colors are 8-bit and number no more than 256!!		;;;;;
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	ExportPalette(Pal,Type,OutPath,CountOfPaletteEntries:="",TransColorIndex:=0){
-		tic:=thsi._QPC(1)
+		tic:=this._QPC(1)
 		If (this.LogicalScreenDescriptor["GlobalColorTableFlag"]) AND ((Pal="G") OR (Pal="Global"))	; Use Global Color Table if there is one
 			PalObj:=this.GlobalColorTable["Palette"]
 		Else	; Pal should be a Frame#, and whichever palette this frame uses will be exported.
@@ -785,7 +785,7 @@ class ExGIFIO extends ImGIFIO{
 		PAL:=New PSPAL()
 		PAL.ExportPalette(PalObj,Type,OutPath,CountOfPaletteEntries,TransColorIndex)
 		PAL:=""
-		Console.Send("Palette exported in " Type " format in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Palette exported in " Type " format in " (this._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_WriteGIFFrame(Idx){
 		this._WriteGIFHeader()
@@ -1184,7 +1184,7 @@ class GIFTransform extends GIFHelper{
 			}
 	}
 	Unify(Setting:=1){
-		tic:=thsi._QPC(1)
+		tic:=this._QPC(1)
 		MaxXCoord:=0
 		MaxYCoord:=0
 		Loop, % this.Frame.Length()
@@ -1240,7 +1240,7 @@ class GIFTransform extends GIFHelper{
 		this.LogicalScreenDescriptor["CanvasWidth"]:=MaxWidth
 		this.LogicalScreenDescriptor["CanvasHeight"]:=MaxHeight
 		
-		Console.Send("Unified frames in " (thsi._QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Unified frames in " (this._QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_InsertRC(ByRef FrameObj,PalEntry,Top,Bottom,Left,Right){
 		Width:=FrameObj["ImageWidth"]
