@@ -17,7 +17,7 @@ OnError("Traceback")
 
 try {
 
-Global PS_Version:="v0.0.0.13a"
+Global PS_Version:="v0.0.0.14a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -147,15 +147,15 @@ SetCompressionProfile(){
 	Loop, % Arr.Length()
 		{
 		If (Arr[A_Index]="Recommended")
-			Settings.Compress:=1, Settings.FixPaletteColorErrors:=1, Settings.AutodetectPalettedBAM:=1, Settings.DropDuplicatePaletteEntries:=1, Settings.DropUnusedPaletteEntries:=1, Settings.SearchTransColor:=1, Settings.ForceTransColor:=1, Settings.ForceShadowColor:=0, Settings.AlphaCutoff:=10, Settings.AllowShortPalette:=1, Settings.TrimFrameData:=1, Settings.ExtraTrimBuffer:=2, Settings.ExtraTrimDepth:=3, Settings.ReduceFrameRowLT:=1, Settings.ReduceFrameColumnLT:=1, Settings.ReduceFramePixelLT:=1, Settings.DropDuplicateFrameData:=1, Settings.DropUnusedFrameData:=1, Settings.IntelligentRLE:=1, Settings.MaxRLERun:=255, Settings.FindBestRLEIndex:=0, Settings.DropDuplicateFrameEntries:=1, Settings.DropUnusedFrameEntries:=1, Settings.AdvancedFLTCompression:=1, Settings.FLTSanityCutoff:=720, Settings.DropEmptyCycleEntries:=1, Settings.AdvancedZlibCompress:=2, Settings.zopfliIterations:=1000
+			Settings.FixPaletteColorErrors:=1, Settings.AutodetectPalettedBAM:=1, Settings.DropDuplicatePaletteEntries:=1, Settings.DropUnusedPaletteEntries:=1, Settings.SearchTransColor:=1, Settings.ForceTransColor:=1, Settings.ForceShadowColor:=0, Settings.AlphaCutoff:=10, Settings.AllowShortPalette:=1, Settings.TrimFrameData:=1, Settings.ExtraTrimBuffer:=2, Settings.ExtraTrimDepth:=3, Settings.ReduceFrameRowLT:=1, Settings.ReduceFrameColumnLT:=1, Settings.ReduceFramePixelLT:=1, Settings.DropDuplicateFrameData:=1, Settings.DropUnusedFrameData:=1, Settings.IntelligentRLE:=1, Settings.MaxRLERun:=255, Settings.FindBestRLEIndex:=0, Settings.DropDuplicateFrameEntries:=1, Settings.DropUnusedFrameEntries:=1, Settings.AdvancedFLTCompression:=1, Settings.FLTSanityCutoff:=720, Settings.DropEmptyCycleEntries:=1, Settings.AdvancedZlibCompress:=2, Settings.zopfliIterations:=1000
 		Else If (Arr[A_Index]="Max")
-			Settings.Compress:=1, Settings.FixPaletteColorErrors:=1, Settings.AutodetectPalettedBAM:=0, Settings.DropDuplicatePaletteEntries:=1, Settings.DropUnusedPaletteEntries:=1, Settings.SearchTransColor:=1, Settings.ForceTransColor:=1, Settings.AlphaCutoff:=10, Settings.AllowShortPalette:=1, Settings.TrimFrameData:=1, Settings.ExtraTrimBuffer:=2, Settings.ExtraTrimDepth:=3, Settings.ReduceFrameRowLT:=1, Settings.ReduceFrameColumnLT:=1, Settings.ReduceFramePixelLT:=1, Settings.DropDuplicateFrameData:=1, Settings.DropUnusedFrameData:=1, Settings.IntelligentRLE:=1, Settings.MaxRLERun:=255, Settings.FindBestRLEIndex:=1, Settings.DropDuplicateFrameEntries:=1, Settings.DropUnusedFrameEntries:=1, Settings.AdvancedFLTCompression:=1, Settings.FLTSanityCutoff:=5040, Settings.DropEmptyCycleEntries:=1, Settings.AdvancedZlibCompress:=2, Settings.zopfliIterations:=1000
+			Settings.FixPaletteColorErrors:=1, Settings.AutodetectPalettedBAM:=0, Settings.DropDuplicatePaletteEntries:=1, Settings.DropUnusedPaletteEntries:=1, Settings.SearchTransColor:=1, Settings.ForceTransColor:=1, Settings.AlphaCutoff:=10, Settings.AllowShortPalette:=1, Settings.TrimFrameData:=1, Settings.ExtraTrimBuffer:=2, Settings.ExtraTrimDepth:=3, Settings.ReduceFrameRowLT:=1, Settings.ReduceFrameColumnLT:=1, Settings.ReduceFramePixelLT:=1, Settings.DropDuplicateFrameData:=1, Settings.DropUnusedFrameData:=1, Settings.IntelligentRLE:=1, Settings.MaxRLERun:=255, Settings.FindBestRLEIndex:=1, Settings.DropDuplicateFrameEntries:=1, Settings.DropUnusedFrameEntries:=1, Settings.AdvancedFLTCompression:=1, Settings.FLTSanityCutoff:=5040, Settings.DropEmptyCycleEntries:=1, Settings.AdvancedZlibCompress:=2, Settings.zopfliIterations:=1000
 		Else If (Arr[A_Index]="Safe")
-			Settings.Compress:=1, Settings.FixPaletteColorErrors:=1, Settings.AutodetectPalettedBAM:=1, Settings.DropDuplicatePaletteEntries:=0, Settings.DropUnusedPaletteEntries:=0, Settings.SearchTransColor:=1, Settings.ForceTransColor:=0, Settings.ForceShadowColor:=0, Settings.AlphaCutoff:=10, Settings.AllowShortPalette:=0, Settings.TrimFrameData:=1, Settings.ExtraTrimBuffer:=0, Settings.ExtraTrimDepth:=0, Settings.ReduceFrameRowLT:=1, Settings.ReduceFrameColumnLT:=1, Settings.ReduceFramePixelLT:=1, Settings.DropDuplicateFrameData:=1, Settings.DropUnusedFrameData:=1, Settings.IntelligentRLE:=1, Settings.MaxRLERun:=254, Settings.FindBestRLEIndex:=0, Settings.DropDuplicateFrameEntries:=1, Settings.DropUnusedFrameEntries:=1, Settings.AdvancedFLTCompression:=1, Settings.FLTSanityCutoff:=720, Settings.AdvancedZlibCompress:=0
+			Settings.FixPaletteColorErrors:=1, Settings.AutodetectPalettedBAM:=1, Settings.DropDuplicatePaletteEntries:=0, Settings.DropUnusedPaletteEntries:=0, Settings.SearchTransColor:=1, Settings.ForceTransColor:=0, Settings.ForceShadowColor:=0, Settings.AlphaCutoff:=10, Settings.AllowShortPalette:=0, Settings.TrimFrameData:=1, Settings.ExtraTrimBuffer:=0, Settings.ExtraTrimDepth:=0, Settings.ReduceFrameRowLT:=1, Settings.ReduceFrameColumnLT:=1, Settings.ReduceFramePixelLT:=1, Settings.DropDuplicateFrameData:=1, Settings.DropUnusedFrameData:=1, Settings.IntelligentRLE:=1, Settings.MaxRLERun:=254, Settings.FindBestRLEIndex:=0, Settings.DropDuplicateFrameEntries:=1, Settings.DropUnusedFrameEntries:=1, Settings.AdvancedFLTCompression:=1, Settings.FLTSanityCutoff:=720, Settings.AdvancedZlibCompress:=0
 		Else If (Arr[A_Index]="Quick") OR (Arr[A_Index]="Fast")
-			Settings.Compress:=1, Settings.FixPaletteColorErrors:=1, Settings.AutodetectPalettedBAM:=1, Settings.DropDuplicatePaletteEntries:=1, Settings.DropUnusedPaletteEntries:=1, Settings.SearchTransColor:=1, Settings.ForceTransColor:=1, Settings.ForceShadowColor:=0, Settings.AlphaCutoff:=10, Settings.AllowShortPalette:=1, Settings.TrimFrameData:=1, Settings.ExtraTrimBuffer:=2, Settings.ExtraTrimDepth:=3, Settings.ReduceFrameRowLT:=1, Settings.ReduceFrameColumnLT:=1, Settings.ReduceFramePixelLT:=1, Settings.DropDuplicateFrameData:=1, Settings.DropUnusedFrameData:=1, Settings.IntelligentRLE:=1, Settings.MaxRLERun:=254, Settings.FindBestRLEIndex:=0, Settings.DropDuplicateFrameEntries:=1, Settings.DropUnusedFrameEntries:=1, Settings.AdvancedFLTCompression:=1, Settings.FLTSanityCutoff:=1, Settings.DropEmptyCycleEntries:=1, Settings.AdvancedZlibCompress:=1
+			Settings.FixPaletteColorErrors:=1, Settings.AutodetectPalettedBAM:=1, Settings.DropDuplicatePaletteEntries:=1, Settings.DropUnusedPaletteEntries:=1, Settings.SearchTransColor:=1, Settings.ForceTransColor:=1, Settings.ForceShadowColor:=0, Settings.AlphaCutoff:=10, Settings.AllowShortPalette:=1, Settings.TrimFrameData:=1, Settings.ExtraTrimBuffer:=2, Settings.ExtraTrimDepth:=3, Settings.ReduceFrameRowLT:=1, Settings.ReduceFrameColumnLT:=1, Settings.ReduceFramePixelLT:=1, Settings.DropDuplicateFrameData:=1, Settings.DropUnusedFrameData:=1, Settings.IntelligentRLE:=1, Settings.MaxRLERun:=254, Settings.FindBestRLEIndex:=0, Settings.DropDuplicateFrameEntries:=1, Settings.DropUnusedFrameEntries:=1, Settings.AdvancedFLTCompression:=1, Settings.FLTSanityCutoff:=1, Settings.DropEmptyCycleEntries:=1, Settings.AdvancedZlibCompress:=1
 		Else If (Arr[A_Index]="None")
-			Settings.Compress:=0
+			Settings.OrderOfOperations:=StrReplace(Settings.OrderOfOperations,"C")
 		; BG1 | PST | IWD | BG2 | IWD2 | EE
 		Else If (Arr[A_Index]="BG1") OR (Arr[A_Index]="PST")
 			{
@@ -205,8 +205,7 @@ ProcessFile(Input,Output){
 			{
 			If (Char="C")	; Compress
 				{
-				If (Settings.Compress)
-					BAM.CompressBAM()
+				BAM.CompressBAM()
 				}
 			Else If (Char="P")	; Process
 				{
@@ -221,7 +220,7 @@ ProcessFile(Input,Output){
 				}
 			}
 		Settings.IntelligentRLE:=RLE
-		If (Settings.Compress) AND (Settings.IntelligentRLE=1) AND (Settings.Save<>"BAMD") AND (Settings.Save<>"GIF")
+		If InStr(Settings.OrderOfOperations,"C") AND (Settings.IntelligentRLE=1) AND (Settings.Save<>"BAMD") AND (Settings.Save<>"GIF")
 			BytesSaved:=BAM._RLE(), Console.Send(BytesSaved " bytes were saved by applying Intelligent RLE." "`r`n","I")
 		BAM._UpdateStats()
 		;~ BAM.PrintBAM()
@@ -453,9 +452,9 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 		this.DataMem.Seek(0,0)
 		DllCall("RtlFillMemory","Ptr",this.GetAddress("Raw"),"UInt",this.Stats.FileSize,"UChar",0)
 		this._WriteBAM()
-		If (Settings.AdvancedZlibCompress=2) AND (Settings.Compress=1)
+		If (Settings.AdvancedZlibCompress=2) AND InStr(Settings.OrderOfOperations,"C")
 			this._zopfliCompressBAM(OutputPath)
-		Else If (Settings.AdvancedZlibCompress=1) AND (Settings.Compress=1)
+		Else If (Settings.AdvancedZlibCompress=1) AND InStr(Settings.OrderOfOperations,"C")
 			this._zlibCompressBAM()
 		file:=FileOpen(OutputPath,"w-d")
 			If !IsObject(file)
@@ -3872,7 +3871,7 @@ SetSettings(){
 	;;;;;     IO Settings      ;;;;;
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	Settings.Save:="BAM"				; | BAM | BAMD | GIF |	; (BAMD takes frame filetype from Settings.ExportFrames)
-	Settings.Compress:=1
+	;Settings.Compress:=1
 	Settings.ExportPalette:=""			; | ACT | ALL | Bin | BMP | BMPV | PAL | Raw |
 	Settings.ExportFrames:=""			; | BMP | DIB | GIF | JFIF | JPE | JPEG | JPG | PNG | RLE | TIF | TIFF || BMP,8V3 | BMP,24V3 | BMP,32V5 |
 	Settings.ExportFramesAsSequences:=0
