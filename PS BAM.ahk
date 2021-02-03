@@ -17,7 +17,7 @@ OnError("Traceback")
 
 try {
 
-Global PS_Version:="v0.0.0.14a"
+Global PS_Version:="v0.0.0.16a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -2676,6 +2676,19 @@ class CompressBAM extends ProcessBAM{
 			}
 		Return (transCount=Height?1:0)
 	}
+	_IsFrameTrans(FrameNum){
+		IsTrans:=1
+		Entry:=this._GetFrameData1stFrameEntry(FrameNum) ; More than 1 FrameEntry could be pointing to this frame...
+		Loop, % this.FrameEntries[Entry,"Height"]	; For each row
+			{
+			If !(this._IsRowTrans(FrameNum,A_Index-1,this.FrameEntries[Entry,"Width"]))
+				{
+				IsTrans:=0
+				Break
+				}
+			}
+		Return IsTrans
+	}
 	_TrimFrames(){
 		tic:=QPC(1)
 		BytesRemoved:=0, Done:=0
@@ -3398,9 +3411,10 @@ class ProcessBAM extends DebugBAM{
 		Loop, % this.Stats.CountOfFrameEntries
 			{
 			Index:=A_Index-1
-			If (this.FrameEntries[Index,"CenterX"]>MaxXCoord)
+			;IsTrans:=this._IsFrameTrans(Index)
+			If (this.FrameEntries[Index,"CenterX"]>MaxXCoord) ;AND !IsTrans
 				MaxXCoord:=this.FrameEntries[Index,"CenterX"]
-			If (this.FrameEntries[Index,"CenterY"]>MaxYCoord)
+			If (this.FrameEntries[Index,"CenterY"]>MaxYCoord) ;AND !IsTrans
 				MaxYCoord:=this.FrameEntries[Index,"CenterY"]
 			}
 		MaxWidth:=0
@@ -3408,6 +3422,8 @@ class ProcessBAM extends DebugBAM{
 		Loop, % this.Stats.CountOfFrameEntries
 			{
 			Index:=A_Index-1
+			If (IsTrans:=this._IsFrameTrans(Index))
+				Continue
 			InsertLeft:=(MaxXCoord - this.FrameEntries[Index,"CenterX"])
 			InsertTop:=(MaxYCoord - this.FrameEntries[Index,"CenterY"])
 			;Console.Send("FrameEntry=" Index ", InsertLeft= " InsertLeft ", InsertTop=" InsertTop "`r`n","I")
@@ -3516,7 +3532,6 @@ class ProcessBAM extends DebugBAM{
 				ShiftDown+=1
 				}
 			}
-		
 	}
 	_PadFrameToDims(Frame,Width,Height){
 		InsertRight:=(Width-this.FrameEntries[Frame,"Width"]), InsertRight:=(InsertRight<0?0:InsertRight)
@@ -3871,12 +3886,12 @@ SetSettings(){
 	;;;;;     IO Settings      ;;;;;
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	Settings.Save:="BAM"				; | BAM | BAMD | GIF |	; (BAMD takes frame filetype from Settings.ExportFrames)
-	;Settings.Compress:=1
+	;Settings.Compress:=1				; Depreciated
 	Settings.ExportPalette:=""			; | ACT | ALL | Bin | BMP | BMPV | PAL | Raw |
 	Settings.ExportFrames:=""			; | BMP | DIB | GIF | JFIF | JPE | JPEG | JPG | PNG | RLE | TIF | TIFF || BMP,8V3 | BMP,24V3 | BMP,32V5 |
 	Settings.ExportFramesAsSequences:=0
-	;~ Settings.CompressFirst:=1
-	;~ Settings.ProcessFirst:=0
+	;~ Settings.CompressFirst:=1		; Depreciated
+	;~ Settings.ProcessFirst:=0			; Depreciated
 	Settings.OrderOfOperations:="PCE"	; P = Process; C = Compress; E = Export; in any order.  e.g. | CPE | CEP | PCE | PEC | EPC | ECP |
 	Settings.SingleGIF:=0
 	Settings.ReplacePalette:=""
@@ -3927,6 +3942,7 @@ SetSettings(){
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	Settings.BAMProfile:=""				; | ItemIcon | DescriptionIcon | Zero | Paperdoll | SpellIconEE | GroundIcon | DescriptionIconEE | ItemIconPST | GroundIconPST | SpellIcon | Spell |
 	Settings.Unify:=0					; | 0=Off | 1=On | 2=Square |
+	;Settings.UnifyTransFrameAlt		; Not implemented.  Could be used to toggle "this._IsFrameTrans()" in Unify.
 	Settings.Montage:=""
 	Settings.ModXOffset:=0
 	Settings.ModYOffset:=0

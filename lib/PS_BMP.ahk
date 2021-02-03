@@ -12,8 +12,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;             PS_BMP             ;;;;;
-;;;;;  Copyright (c) 2018-2019 Sam.  ;;;;;
-;;;;;     Last Updated 20190501      ;;;;;
+;;;;;  Copyright (c) 2018-2021 Sam.  ;;;;;
+;;;;;     Last Updated 20210108      ;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -154,46 +154,70 @@ class PSBMP{
 		If (R="") AND (G="") AND (B="")	; Set Alpha of ALL colors
 			{
 			If IsObject(this.Palette)
+				{
 				For k,v in this.Palette
 						v["AA"]:=Alpha
+				}
 			If IsObject(this.FrameUP)
+				{
 				For k,v in this.FrameUP
 						v["AA"]:=Alpha
+				}
 			}
 		Else
 			{
 			If IsObject(this.Palette)
+				{
 				For k,v in this.Palette
+					{
 					If (v["RR"]=R) AND (v["GG"]=G) AND (v["BB"]=B)
 						v["AA"]:=Alpha
-			If IsObject(this.FrameUP)
-				For k,v in this.FrameUP
-					If (v["RR"]=R) AND (v["GG"]=G) AND (v["BB"]=B)
-						v["AA"]:=Alpha
+					}
 				}
+			If IsObject(this.FrameUP)
+				{
+				For k,v in this.FrameUP
+					{
+					If (v["RR"]=R) AND (v["GG"]=G) AND (v["BB"]=B)
+						v["AA"]:=Alpha
+					}
+				}
+			}
 		}
 	TransformTransparency(From:="",To:=255){
 		If (From="")
 			{
 			If IsObject(this.Palette)
+				{
 				For k,v in this.Palette
-						v["AA"]:=(To=-1?v["AA"]^255:To)
+					v["AA"]:=(To=-1?v["AA"]^255:To)
+				}
 			If IsObject(this.FrameUP)
+				{
 				For k,v in this.FrameUP
-						v["AA"]:=(To=-1?v["AA"]^255:To)
+					v["AA"]:=(To=-1?v["AA"]^255:To)
+				}
 			}
 		Else
 			{
 			If IsObject(this.Palette)
+				{
 				For k,v in this.Palette
+					{
 					If (v["AA"]=From)
 						v["AA"]:=(To=-1?v["AA"]^255:To)
+					}
+				}
 			If IsObject(this.FrameUP)
+				{
 				For k,v in this.FrameUP
+					{
 					If (v["AA"]=From)
 						v["AA"]:=(To=-1?v["AA"]^255:To)
+					}
+				}
 			}
-	}
+		}
 	_ReadBMP(){
 		tic:=this._QPC(1)
 		this._ReadFileHeader()
