@@ -17,7 +17,7 @@ OnError("Traceback")
 
 try {
 
-Global PS_Version:="v0.0.0.16a"
+Global PS_Version:="v0.0.0.17a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -692,7 +692,10 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			PalObj:=""
 			PAL:=New PSPAL()
 			If FileExist(Settings.ReplacePalette)
+				{
 				PalObj:=PAL.ImportPaletteFromFile(Settings.ReplacePalette)
+				Settings.ReplacePalette:="" ; Edited 20210203
+				}
 			If !IsObject(PalObj) AND IMT.HasKey("Palette")
 				PalObj:=PAL.ImportPaletteFromFile(IMT["Palette"]), IMT.Delete("Palette")
 			If !IsObject(PalObj)
@@ -3264,6 +3267,8 @@ class ProcessBAM extends DebugBAM{
 			this._SetBAMProfile(Settings.BAMProfile)
 		If (Settings.Unify>0)
 			this._Unify()
+		If (Settings.Fill<>"")
+			this._Fill()
 		If (Settings.Montage<>"")
 			this._Montage()
 		If Settings.ModXOffset
@@ -3502,6 +3507,61 @@ class ProcessBAM extends DebugBAM{
 				Width+=Right
 				}
 			}
+	}
+	_SplitFillSettings(){
+		; widthXheight,orientation
+		FillSettings:={}
+		Arr:=StrSplit(Trim(Settings.Fill),["x",","])
+		FillSettings["width"]:=(Arr[1]?Arr[1]:0)
+		FillSettings["height"]:=(Arr[2]?Arr[2]:0)
+		FillSettings["orientation"]:=(Arr[3]?Arr[3]:"NorthWest")
+		orientation:=FillSettings["orientation"]
+		If (orientation="North") OR (orientation="Top") OR (orientation="South") OR (orientation="Bottom")
+			FillSettings["width"]:=0
+		Else If (orientation="East") OR (orientation="Right") OR (orientation="West") OR (orientation="Left")
+			FillSettings["height"]:=0
+		Else If !(orientation="NorthWest") AND !(orientation="TopLeft") AND !(orientation="NorthEast") AND !(orientation="TopRight") AND !(orientation="SouthWest") AND !(orientation="BottomLeft") AND !(orientation="SouthEast") AND !(orientation="BottomRight")
+			{
+			Console.Send("Orientation passed to --Settings.Fill is an unknown value:  '" orientation "'.`r`n","E")
+			throw Exception("Orientation passed to --Settings.Fill is an unknown value:  '" orientation "'.",,"`n`n" Traceback())
+			}
+		;MsgBox % "Width=" FillSettings["width"] "`r`nHeight=" FillSettings["height"] "`r`nOrientation=" FillSettings["orientation"]
+		Console.Send("--Fill resolved to '" FillSettings["width"] "x" FillSettings["height"] "," FillSettings["orientation"] "'`r`n","I")
+		Return FillSettings
+	}
+	_Fill(){
+		; Note this does not adjust Frame Offsets.
+		tic:=QPC(1)
+		FillSettings:=this._SplitFillSettings()
+		fw:=FillSettings["width"]
+		fh:=FillSettings["height"]
+		fo:=FillSettings["orientation"]
+		Loop, % this.Stats.CountOfFrameEntries
+			{
+			Index:=A_Index-1
+			InsertWidth:=(fw-this.FrameEntries[Index,"Width"]), InsertWidth:=(InsertWidth<0?0:InsertWidth)
+			InsertHeight:=(fh-this.FrameEntries[Index,"Height"]), InsertHeight:=(InsertHeight<0?0:InsertHeight)
+			If (fo="NorthWest") OR (fo="TopLeft")
+				InsertTop:=InsertHeight, InsertBottom:=0, InsertLeft:=InsertWidth, InsertRight:=0
+			Else If (fo="NorthEast") OR (fo="TopRight")
+				InsertTop:=InsertHeight, InsertBottom:=0, InsertLeft:=0, InsertRight:=InsertWidth
+			Else If (fo="SouthWest") OR (fo="BottomLeft")
+				InsertTop:=0, InsertBottom:=InsertHeight, InsertLeft:=InsertWidth, InsertRight:=0
+			Else If (fo="SouthEast") OR (fo="BottomRight")
+				InsertTop:=0, InsertBottom:=InsertHeight, InsertLeft:=0, InsertRight:=InsertWidth
+			Else If (fo="North") OR (fo="Top")
+				InsertTop:=InsertHeight, InsertBottom:=0, InsertLeft:=0, InsertRight:=0
+			Else If (fo="South") OR (fo="Bottom")
+				InsertTop:=0, InsertBottom:=InsertHeight, InsertLeft:=0, InsertRight:=0
+			Else If (fo="East") OR (fo="Right")
+				InsertTop:=0, InsertBottom:=0, InsertLeft:=0, InsertRight:=InsertWidth
+			Else If (fo="West") OR (fo="Left")
+				InsertTop:=0, InsertBottom:=0, InsertLeft:=InsertWidth, InsertRight:=0
+			this._InsertRC(Index,InsertTop,InsertBottom,InsertLeft,InsertRight)
+			this.FrameEntries[Index,"Width"]+=InsertWidth ; These only work b/c we zeroed unused dimensions in _SplitFillSettings()
+			this.FrameEntries[Index,"Height"]+=InsertHeight ; ; These only work b/c we zeroed unused dimensions in _SplitFillSettings()
+			}
+		Console.Send("Filled frames in " (QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_Composite(ByRef Frame,X,Y,W,H,ByRef Canvas,CanvasWidth,CanvasHeight,ShiftRight,ShiftDown,TransColor){
 		Col:=0, ShiftRight+=X*-1, ShiftDown+=Y*-1
@@ -3942,6 +4002,7 @@ SetSettings(){
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	Settings.BAMProfile:=""				; | ItemIcon | DescriptionIcon | Zero | Paperdoll | SpellIconEE | GroundIcon | DescriptionIconEE | ItemIconPST | GroundIconPST | SpellIcon | Spell |
 	Settings.Unify:=0					; | 0=Off | 1=On | 2=Square |
+	Settings.Fill:=""					; widthXheight,orientation		Note:  EITHER width or height may be zero, indicating no change.  orientation may be any of:  | NorthWest | TopLeft | NorthEast | TopRight | SouthWest | BottomLeft | SouthEast | BottomRight | North | Top | East | Right | South | Bottom | West | Left |
 	;Settings.UnifyTransFrameAlt		; Not implemented.  Could be used to toggle "this._IsFrameTrans()" in Unify.
 	Settings.Montage:=""
 	Settings.ModXOffset:=0
