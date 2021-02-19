@@ -1382,7 +1382,7 @@ class GIFHelper{
 	 DllCall("GlobalUnlock",UInt,hData)
 	 DllCall("ole32\CreateStreamOnHGlobal",UInt,hData,Int,True,UIntP,pStream)
 	 DllCall("gdiplus\GdipCreateBitmapFromStream",UInt,pStream,UIntP,pBitmap)
-	 DllCall(NumGet(NumGet(1*pStream)+8),UInt,pStream) ; IStream::Release
+	 ObjRelease(pStream) ;DllCall(NumGet(NumGet(1*pStream)+8),UInt,pStream) ; IStream::Release
 	Return pBitmap
 	}
 }

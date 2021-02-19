@@ -147,6 +147,8 @@ GetSourceCode(){
 		aah:=fileObj2.Read()
 		fileObj2.Close()
 		}
+	Else
+		aah:="" ; Compiled script is probably compressed with e.g. MPRESS
 	Return aah
 }
 

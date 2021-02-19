@@ -904,10 +904,11 @@ class PSBMP{
 	 DllCall("GlobalUnlock",UInt,hData)
 	 DllCall("ole32\CreateStreamOnHGlobal",UInt,hData,Int,True,UIntP,pStream)
 	 DllCall("gdiplus\GdipCreateBitmapFromStream",UInt,pStream,UIntP,pBitmap)
-	 DllCall(NumGet(NumGet(1*pStream)+8),UInt,pStream) ; IStream::Release
+	 ObjRelease(pStream) ;DllCall(NumGet(NumGet(1*pStream)+8),UInt,pStream) ; IStream::Release
 	Return pBitmap
 	}
 }
+
 
 #Include <PS_ExceptionHandler>	; https://github.com/Sampsca/PS_ExceptionHandler
 ;#Include PushLog.ahk			; https://github.com/Sampsca/PushLog
