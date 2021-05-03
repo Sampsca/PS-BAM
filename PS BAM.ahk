@@ -1,5 +1,5 @@
 ﻿;
-; AutoHotkey Version: 1.1.33.02
+; AutoHotkey Version: 1.1.33.08
 ; Language:       English
 ; Platform:       Optimized for Windows 10
 ; Author:         Sam.
@@ -17,7 +17,7 @@ OnError("Traceback")
 
 try {
 
-Global PS_Version:="v0.0.0.18a"
+Global PS_Version:="v0.0.0.19a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -396,7 +396,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 		
 		this._ReadBAM()
 		this.Raw:="", this.Delete("Raw"), this.DataMem:=""
-	Console.Send("Finished Loading BAM in " (QPC(1)-tic) " sec.`r`n","-I")
+		Console.Send("Finished Loading BAM in " (QPC(1)-tic) " sec.`r`n","-I")
 	}
 	LoadBAMD(InputPath){
 		tic:=QPC(1)
@@ -1885,12 +1885,14 @@ class ExBAMIO extends ImBAMIO{
 			{
 			FrameArray:=GetSubArray(this.FrameLookupTable,this.CycleEntries[Sequence,"IndexIntoFLT"],cCE,1)
 			;MinCenterX:=MinCenterY:=1000000
+			OldShiftX:=(MinCenterX<0?0-MinCenterX:0), OldShiftY:=(MinCenterY<0?0-MinCenterY:0)
 			For k,Entry in FrameArray
 				{
 				CenterX:=this.FrameEntries[Entry,"CenterX"]*-1, CenterY:=this.FrameEntries[Entry,"CenterY"]*-1
 				MinCenterX:=(CenterX<MinCenterX?CenterX:MinCenterX), MinCenterY:=(CenterY<MinCenterY?CenterY:MinCenterY)
 				}
 			ShiftX:=(MinCenterX<0?0-MinCenterX:0), ShiftY:=(MinCenterY<0?0-MinCenterY:0)
+			CanvasWidth+=ShiftX-OldShiftX, CanvasHeight+=ShiftY-OldShiftY
 			;MaxWidth:=MaxHeight:=MaxCenterX:=MaxCenterY:=CanvasWidth:=CanvasHeight:=0
 			For k,Entry in FrameArray
 				{
@@ -2132,6 +2134,22 @@ class ImBAMIO extends CompressBAM{
 				}
 			}
 		Return FrameObj
+	}
+	_ReplacePaletteColor(ByRef PalObj,FromRR:=0,FromGG:=0,FromBB:=0,FromAA:=0,ToRR:=1,ToGG:=1,ToBB:=1,ToAA:=0){
+		For k,v in PalObj
+			{
+			If (v["RR"]=FromRR) AND (v["GG"]=FromGG) AND (v["BB"]=FromBB) AND (v["AA"]=FromAA)
+				v["RR"]:=ToRR, v["GG"]:=ToGG, v["BB"]:=ToBB, v["AA"]:=ToAA
+			}
+	}
+	_AddBAMToQuant(ByRef BAMObj,ByRef Quant){
+		For FrameNum,v1 in BAMObj.FrameData
+			{
+			For k2,PalIdx in v1
+				{
+				Quant.AddColor(BAMObj.Palette[PalIdx,"RR"], BAMObj.Palette[PalIdx,"GG"], BAMObj.Palette[PalIdx,"BB"], BAMObj.Palette[PalIdx,"AA"])
+				}
+			}
 	}
 	_FindFrames(BaseFrame){
 		IMT:={}
@@ -3619,6 +3637,8 @@ class ProcessBAM extends DebugBAM{
 		For k,Px in Frame
 			{
 			;Console.Send(ShiftDown*CanvasWidth+ShiftRight+Col A_Space,"")
+			If (ShiftDown*CanvasWidth+ShiftRight+Col>Canvas.Count()-1)
+				throw Exception("Attempted to Composite a pixel outside of canvas bounds.",,"`n`n" Traceback())
 			If (Px<>TransColor)	; Don't overwrite potentially real pixels with transparent
 				Canvas[ShiftDown*CanvasWidth+ShiftRight+Col]:=Px
 			Col++
@@ -3655,7 +3675,7 @@ class ProcessBAM extends DebugBAM{
 	_Montage(Input){ ; Combines frames into a single frame.
 		tic:=QPC(1)
 		this._TrimFrames()
-		If (Settings.Montage="1x2")	; (rows x columns)
+		If (Settings.Montage="1x2")	; (rows x columns) ; Inventory Paperdoll Specific
 			{
 			; Dimension calculations:
 			MinX:=MinY:=MinWidth:=MinHeight:=2000, MaxX:=MaxY:=MaxWidth:=MaxHeight:=0, CanvasWidth:=CanvasHeight:=1
@@ -3731,33 +3751,41 @@ class ProcessBAM extends DebugBAM{
 				}
 			*/
 			}
-		Else If (Settings.Montage="2x2SplitCreAnim")	; (rows x columns)
+		Else If (Settings.Montage="2x2SplitCreAnim") OR (Settings.Montage="2x2External") OR (Settings.Montage="2x2ExternalIgnoreOffsets")	; (rows x columns)
 			{
-			;SplitPath, Output, Animation, OutputDir
 			SplitPath, Input, InFileName, InDir, InExtension, Animation, InDrive
-			AnimationPrefix:=SubStr(Animation,1,4) ; Get 1st 4 characters (animation ID)
 			AnimationArr:={}
-			AnimationArr.Push(["11","12","13","14"])
-			AnimationArr.Push(["21","22","23","24"])
-			AnimationArr.Push(["31","32","33","34"])
-			AnimationArr.Push(["11E","12E","13E","14E"])
-			AnimationArr.Push(["21E","22E","23E","24E"])
-			AnimationArr.Push(["31E","32E","33E","34E"])
-			AnimationArr.Push(["111","121","131","141"])
-			AnimationArr.Push(["112","122","132","142"])
-			AnimationArr.Push(["113","123","133","143"])
-			AnimationArr.Push(["114","124","134","144"])
-			AnimationArr.Push(["115","125","135","145"])
-			AnimationArr.Push(["211","221","231","241"])
-			AnimationArr.Push(["212","222","232","242"])
-			AnimationArr.Push(["213","223","233","243"])
-			AnimationArr.Push(["214","224","234","244"])
-			AnimationArr.Push(["215","225","235","245"])
-			AnimationArr.Push(["216","226","236","246"])
+			If (Settings.Montage="2x2SplitCreAnim")
+				{
+				AnimationPrefix:=SubStr(Animation,1,4) ; Get 1st 4 characters (animation ID)
+				AnimationArr.Push(["g11","g12","g13","g14"])
+				AnimationArr.Push(["g21","g22","g23","g24"])
+				AnimationArr.Push(["g31","g32","g33","g34"])
+				AnimationArr.Push(["g11E","g12E","g13E","g14E"])
+				AnimationArr.Push(["g21E","g22E","g23E","g24E"])
+				AnimationArr.Push(["g31E","g32E","g33E","g34E"])
+				AnimationArr.Push(["g111","g121","g131","g141"])
+				AnimationArr.Push(["g112","g122","g132","g142"])
+				AnimationArr.Push(["g113","g123","g133","g143"])
+				AnimationArr.Push(["g114","g124","g134","g144"])
+				AnimationArr.Push(["g115","g125","g135","g145"])
+				AnimationArr.Push(["g211","g221","g231","g241"])
+				AnimationArr.Push(["g212","g222","g232","g242"])
+				AnimationArr.Push(["g213","g223","g233","g243"])
+				AnimationArr.Push(["g214","g224","g234","g244"])
+				AnimationArr.Push(["g215","g225","g235","g245"])
+				AnimationArr.Push(["g216","g226","g236","g246"])
+				}
+			Else ; If (Settings.Montage="2x2External") OR (Settings.Montage="2x2ExternalIgnoreOffsets")
+				{
+				AnimationPrefix:=SubStr(Animation,1,StrLen(Animation)-1) ; Get all but the last character (animation ID)
+				AnimationArr.Push(["1","2","3","4"])
+				AnimationArr.Push(["A","B","C","D"])
+				}
 			AnimationArrIdx:=""
 			For k,v in AnimationArr
 				{
-				If (AnimationPrefix "g" v[1] = Animation)
+				If (AnimationPrefix v[1] = Animation)
 					{
 					AnimationArrIdx:=k
 					Break
@@ -3765,12 +3793,65 @@ class ProcessBAM extends DebugBAM{
 				}
 			Console.DebugLevel:=Settings.DebugLevelL
 			Part2:=New PSBAM()
-				Part2.LoadBAM(InDir "\" AnimationPrefix "g" AnimationArr[AnimationArrIdx,2] ".bam")
+				Part2.LoadBAM(InDir "\" AnimationPrefix AnimationArr[AnimationArrIdx,2] ".bam")
 			Part3:=New PSBAM()
-				Part3.LoadBAM(InDir "\" AnimationPrefix "g" AnimationArr[AnimationArrIdx,3] ".bam")
+				Part3.LoadBAM(InDir "\" AnimationPrefix AnimationArr[AnimationArrIdx,3] ".bam")
 			Part4:=New PSBAM()
-				Part4.LoadBAM(InDir "\" AnimationPrefix "g" AnimationArr[AnimationArrIdx,4] ".bam")
+				Part4.LoadBAM(InDir "\" AnimationPrefix AnimationArr[AnimationArrIdx,4] ".bam")
 			Console.DebugLevel:=Settings.DebugLevelP
+			;;; Handle Palettes ;;;
+			If (Settings.ReplacePaletteMethod="Quant")
+				{
+				Quant:=New PS_Quantization()
+				Quant.AddReservedColor(0,255,0,0)
+				Quant.AddReservedColor(0,0,0,0)
+				If (Settings.ForceShadowColor=-1)
+					{
+					this._ReplacePaletteColor(this.Palette)  ; Defaults to Black->RGBA(1,1,1,0)
+					this._ReplacePaletteColor(Part2.Palette) ; Defaults to Black->RGBA(1,1,1,0)
+					this._ReplacePaletteColor(Part3.Palette) ; Defaults to Black->RGBA(1,1,1,0)
+					this._ReplacePaletteColor(Part4.Palette) ; Defaults to Black->RGBA(1,1,1,0)
+					}
+				this._AddBAMToQuant(this,Quant)
+				this._AddBAMToQuant(Part2,Quant)
+				this._AddBAMToQuant(Part3,Quant)
+				this._AddBAMToQuant(Part4,Quant)
+				Console.Send("ColorCount = " Quant.GetColorCount() "`r`n","I")
+				Quant.Quantize(256)
+				Console.Send("Total Error: " Quant.GetTotalError() "`r`n","I")
+				PalObj:=Quant.GetPaletteObj()
+				this.ReplacePalette("","","","Remap",PalObj)
+				Part2.ReplacePalette("","","","Remap",PalObj)
+				Part3.ReplacePalette("","","","Remap",PalObj)
+				Part4.ReplacePalette("","","","Remap",PalObj)
+				Quant:=""
+				}
+			;;; Recalculate Offsets ;;;
+			If (Settings.Montage="2x2ExternalIgnoreOffsets")
+				{
+				Loop, % this.Stats.CountOfCycles
+					{
+					Sequence:=A_Index-1
+					Idx:=this.CycleEntries[Sequence,"IndexIntoFLT"]
+					Loop, % this.CycleEntries[Sequence,"CountOfFrameIndices"]
+						{
+						Indexi:=A_Index-1
+						; Get Part 1 ;
+						Entry:=this.FrameLookupTable[Idx+Indexi]
+						W1:=this.FrameEntries[Entry,"Width"], H1:=this.FrameEntries[Entry,"Height"]
+						X1:=this.FrameEntries[Entry,"CenterX"], Y1:=this.FrameEntries[Entry,"CenterY"]
+						; Set Part 2 ;
+						Entry2:=Part2.FrameLookupTable[Part2.CycleEntries[Sequence,"IndexIntoFLT"]+Indexi]
+						Part2.FrameEntries[Entry2,"CenterX"]:=-W1+X1, Part2.FrameEntries[Entry2,"CenterY"]:=Y1+(Part2.FrameEntries[Entry2,"Height"]-H1)
+						; Set Part 3 ;
+						Entry3:=Part3.FrameLookupTable[Part3.CycleEntries[Sequence,"IndexIntoFLT"]+Indexi]
+						Part3.FrameEntries[Entry3,"CenterX"]:=X1+(Part3.FrameEntries[Entry3,"Width"]-W1), Part3.FrameEntries[Entry3,"CenterY"]:=-H1+Y1
+						; Set Part 4 ;
+						Entry4:=Part4.FrameLookupTable[Part4.CycleEntries[Sequence,"IndexIntoFLT"]+Indexi]
+						Part4.FrameEntries[Entry4,"CenterX"]:=-W1+X1, Part4.FrameEntries[Entry4,"CenterY"]:=-H1+Y1
+						}
+					}
+				}
 			; Dimension calculations:
 			Loop, % this.Stats.CountOfCycles
 				{
@@ -3830,6 +3911,125 @@ class ProcessBAM extends DebugBAM{
 			Part2:=""
 			Part3:=""
 			Part4:=""
+			this._UpdateStats()
+			}
+		Else If (Settings.Montage="1x2External") OR (Settings.Montage="2x1External") OR (Settings.Montage="1x2ExternalIgnoreOffsets") OR (Settings.Montage="2x1ExternalIgnoreOffsets") ; (rows x columns)
+			{
+			SplitPath, Input, InFileName, InDir, InExtension, Animation, InDrive
+			AnimationArr:={}
+			AnimationPrefix:=SubStr(Animation,1,StrLen(Animation)-1) ; Get all but the last character (animation ID)
+			AnimationArr.Push(["1","2"])
+			AnimationArr.Push(["A","B"])
+			AnimationArr.Push(["L","R"])
+			AnimationArr.Push(["B","C"])
+			AnimationArr.Push(["C","D"])
+			AnimationArr.Push(["2","3"])
+			AnimationArr.Push(["3","4"])
+			AnimationArrIdx:=""
+			For k,v in AnimationArr
+				{
+				If (AnimationPrefix v[1] = Animation)
+					{
+					AnimationArrIdx:=k
+					Break
+					}
+				}
+			Console.DebugLevel:=Settings.DebugLevelL
+			Part2:=New PSBAM()
+				Part2.LoadBAM(InDir "\" AnimationPrefix AnimationArr[AnimationArrIdx,2] ".bam")
+			Console.DebugLevel:=Settings.DebugLevelP
+			;;; Handle Palettes ;;;
+			If (Settings.ReplacePaletteMethod="Quant")
+				{
+				Quant:=New PS_Quantization()
+				Quant.AddReservedColor(0,255,0,0)
+				Quant.AddReservedColor(0,0,0,0)
+				If (Settings.ForceShadowColor=-1)
+					{
+					this._ReplacePaletteColor(this.Palette)  ; Defaults to Black->RGBA(1,1,1,0)
+					this._ReplacePaletteColor(Part2.Palette) ; Defaults to Black->RGBA(1,1,1,0)
+					}
+				this._AddBAMToQuant(this,Quant)
+				this._AddBAMToQuant(Part2,Quant)
+				Console.Send("ColorCount = " Quant.GetColorCount() "`r`n","I")
+				Quant.Quantize(256)
+				Console.Send("Total Error: " Quant.GetTotalError() "`r`n","I")
+				PalObj:=Quant.GetPaletteObj()
+				this.ReplacePalette("","","","Remap",PalObj)
+				Part2.ReplacePalette("","","","Remap",PalObj)
+				Quant:=""
+				}
+			;;; Recalculate Offsets ;;;
+			If InStr(Settings.Montage,"IgnoreOffsets")
+				{
+				Loop, % this.Stats.CountOfCycles
+					{
+					Sequence:=A_Index-1
+					Idx:=this.CycleEntries[Sequence,"IndexIntoFLT"]
+					Loop, % this.CycleEntries[Sequence,"CountOfFrameIndices"]
+						{
+						Indexi:=A_Index-1
+						; Get Part 1 ;
+						Entry:=this.FrameLookupTable[Idx+Indexi]
+						W1:=this.FrameEntries[Entry,"Width"], H1:=this.FrameEntries[Entry,"Height"]
+						X1:=this.FrameEntries[Entry,"CenterX"], Y1:=this.FrameEntries[Entry,"CenterY"]
+						; Set Part 2 ;
+						If InStr(Settings.Montage,"1x2")
+							{
+							Entry2:=Part2.FrameLookupTable[Part2.CycleEntries[Sequence,"IndexIntoFLT"]+Indexi]
+							Part2.FrameEntries[Entry2,"CenterX"]:=-W1+X1, Part2.FrameEntries[Entry2,"CenterY"]:=Y1+(Part2.FrameEntries[Entry2,"Height"]-H1)
+							}
+						Else If InStr(Settings.Montage,"2x1")
+							{
+							Entry2:=Part2.FrameLookupTable[Part2.CycleEntries[Sequence,"IndexIntoFLT"]+Indexi]
+							Part2.FrameEntries[Entry2,"CenterX"]:=X1+(Part2.FrameEntries[Entry2,"Width"]-W1), Part2.FrameEntries[Entry2,"CenterY"]:=-H1+Y1
+							}
+						}
+					}
+				}
+			; Dimension calculations:
+			Loop, % this.Stats.CountOfCycles
+				{
+				Sequence:=A_Index-1
+				MinCenterX:=MinCenterY:=1000000, MaxWidth:=MaxHeight:=MaxCenterX:=MaxCenterY:=CanvasWidth:=CanvasHeight:=0
+				
+				SzArr:=this._GetSequenceCanvasDimensions(Sequence,MinCenterX,MinCenterY,MaxWidth,MaxHeight,MaxCenterX,MaxCenterY,CanvasWidth,CanvasHeight)
+				SzArr:=Part2._GetSequenceCanvasDimensions(Sequence,MinCenterX,MinCenterY,MaxWidth,MaxHeight,MaxCenterX,MaxCenterY,CanvasWidth,CanvasHeight)
+				ShiftX:=(MinCenterX<0?0-MinCenterX:0), ShiftY:=(MinCenterY<0?0-MinCenterY:0)
+				
+				Idx:=this.CycleEntries[Sequence,"IndexIntoFLT"]
+				Loop, % this.CycleEntries[Sequence,"CountOfFrameIndices"]
+					{
+					; Create virtual canvas
+					Canvas:="", Canvas:={}, Canvas.SetCapacity(Px:=CanvasWidth*CanvasHeight)
+					Loop, %Px%
+						Canvas[A_Index-1]:=this.Stats.TransColorIndex
+					Indexi:=A_Index-1
+					;;; Part 1 (this BAM) ;;;
+					Entry:=this.FrameLookupTable[Idx+Indexi]
+					W:=this.FrameEntries[Entry,"Width"], H:=this.FrameEntries[Entry,"Height"]
+					X:=this.FrameEntries[Entry,"CenterX"], Y:=this.FrameEntries[Entry,"CenterY"]
+					FramePointer:=this.FrameEntries[Entry,"FramePointer"]
+					this._Composite(this.FrameData[FramePointer],X,Y,W,H,Canvas,CanvasWidth,CanvasHeight,ShiftX,ShiftY,this.Stats.TransColorIndex)
+					;;; Part 2 ;;;
+					Entry:=Part2.FrameLookupTable[Idx+Indexi]
+					W:=Part2.FrameEntries[Entry,"Width"], H:=Part2.FrameEntries[Entry,"Height"]
+					X:=Part2.FrameEntries[Entry,"CenterX"], Y:=Part2.FrameEntries[Entry,"CenterY"]
+					FramePointer:=Part2.FrameEntries[Entry,"FramePointer"]
+					this._Composite(Part2.FrameData[FramePointer],X,Y,W,H,Canvas,CanvasWidth,CanvasHeight,ShiftX,ShiftY,this.Stats.TransColorIndex)
+					;;; Set Canvas to Frame ;;;
+					Entry:=this.FrameLookupTable[Idx+Indexi]
+					FramePointer:=this.FrameEntries[Entry,"FramePointer"]
+					this.FrameData[FramePointer]:=Canvas
+					this.FrameEntries[Entry,"Width"]:=CanvasWidth
+					this.FrameEntries[Entry,"Height"]:=CanvasHeight
+					this.FrameEntries[Entry,"CenterX"]:=ShiftX
+					this.FrameEntries[Entry,"CenterY"]:=ShiftY
+					;this.FrameEntries[Entry,"FramePointer"]:=FramePointer
+					this.FrameEntries[Entry,"RLE"]:=0
+					}
+				}
+			Part2:=""
 			this._UpdateStats()
 			}
 		Else If (Settings.Montage="3x3SplitCreAnim")	; (rows x columns)
@@ -4029,6 +4229,116 @@ class ProcessBAM extends DebugBAM{
 			Part9:=""
 			this._UpdateStats()
 			}
+		Else If InStr(Settings.Montage,"x") ;(Settings.Montage="1x2")	; (rows x columns)
+			{
+			tmp:=StrSplit(Settings.Montage,"x")
+			Rows:=tmp[1], Columns:=tmp[2]
+			Columns+=0 ; Truncate anything not a number
+			Count:=Rows*Columns
+			Count:=(Count>this.Stats.CountOfCycles?this.Stats.CountOfCycles:Count)
+			;;; Recalculate Offsets ;;;
+			If InStr(Settings.Montage,"IgnoreOffsets")
+				{
+				Row:=Column:=0
+				Sequence:=-1
+				Loop, % this.Stats.CountOfCycles
+					{
+					Sequence+=1
+					If (Sequence=0)
+						{
+						Column+=1
+						If (Column>Columns-1)
+							Row+=1, Column:=0
+						Continue
+						}
+					Idx:=this.CycleEntries[Sequence,"IndexIntoFLT"]
+					Loop, % this.CycleEntries[Sequence,"CountOfFrameIndices"]
+						{
+						Indexi:=A_Index-1
+						Entry:=this.FrameLookupTable[Idx+Indexi]
+						; Get Previous ;
+						If (Column=0) ; Just started a new row
+							{
+							Idx0:=this.CycleEntries[Sequence-Columns,"IndexIntoFLT"]
+							Entry0:=this.FrameLookupTable[Idx0+Indexi]
+							this.FrameEntries[Entry,"CenterX"]:=this.FrameEntries[Entry0,"CenterX"]+(this.FrameEntries[Entry,"Width"]-this.FrameEntries[Entry0,"Width"]), this.FrameEntries[Entry,"CenterY"]:=-(this.FrameEntries[Entry0,"Height"])+this.FrameEntries[Entry0,"CenterY"]
+							;If (Row=1)
+							;	this.FrameEntries[Entry,"CenterX"]+=10
+							;If (Row=2)
+							;	this.FrameEntries[Entry,"CenterX"]+=4
+							}
+						Else ; Use previous sequence
+							{
+							Idx0:=this.CycleEntries[Sequence-1,"IndexIntoFLT"]
+							Entry0:=this.FrameLookupTable[Idx0+Indexi]
+							this.FrameEntries[Entry,"CenterX"]:=-(this.FrameEntries[Entry0,"Width"])+this.FrameEntries[Entry0,"CenterX"] ; Was this.FrameEntries[Entry,"CenterY"]:=this.FrameEntries[Entry0,"CenterY"]+(this.FrameEntries[Entry,"Height"]-this.FrameEntries[Entry0,"Height"])
+							If (Row=0)
+								this.FrameEntries[Entry,"CenterY"]:=this.FrameEntries[Entry0,"CenterY"]+(this.FrameEntries[Entry,"Height"]-this.FrameEntries[Entry0,"Height"]) 
+							Else
+								this.FrameEntries[Entry,"CenterY"]:=this.FrameEntries[Entry0,"CenterY"] ;+(this.FrameEntries[Entry,"Height"]-this.FrameEntries[Entry0,"Height"]) 
+							;this.FrameEntries[Entry,"CenterY"]+=7
+							;this.FrameEntries[Entry0,"Width"]
+							;this.FrameEntries[Entry0,"Height"]
+							;this.FrameEntries[Entry0,"CenterX"]
+							;this.FrameEntries[Entry0,"CenterY"]
+							}
+						}
+					Column+=1
+					If (Column>Columns-1)
+						Row+=1, Column:=0
+					If (Row=Rows) ; Starting on Next Set
+						{
+						Sequence+=1
+						Row:=Column:=0
+						Column+=1
+						If (Column>Columns-1)
+							Row+=1, Column:=0
+						}
+					}
+				}
+			;;; Dimension calculations ;;;
+			Loop, % Ceil(this.Stats.CountOfCycles/Count)
+				{
+				StartSequence:=(A_Index-1)*Count
+				MinCenterX:=MinCenterY:=1000000, MaxWidth:=MaxHeight:=MaxCenterX:=MaxCenterY:=CanvasWidth:=CanvasHeight:=0
+				Loop, % Count
+					{
+					Sequence:=StartSequence+A_Index-1
+					SzArr:=this._GetSequenceCanvasDimensions(Sequence,MinCenterX,MinCenterY,MaxWidth,MaxHeight,MaxCenterX,MaxCenterY,CanvasWidth,CanvasHeight)
+					ShiftX:=(MinCenterX<0?0-MinCenterX:0), ShiftY:=(MinCenterY<0?0-MinCenterY:0)
+					}
+				;Sequence:=0
+				Idx:=this.CycleEntries[StartSequence,"IndexIntoFLT"]
+				Loop, % this.CycleEntries[StartSequence,"CountOfFrameIndices"]
+					{
+					Indexi:=A_Index-1
+					;;; Create virtual canvas ;;;
+					Canvas:="", Canvas:={}, Canvas.SetCapacity(Px:=CanvasWidth*CanvasHeight)
+					Loop, %Px%
+						Canvas[A_Index-1]:=this.Stats.TransColorIndex
+					Loop, % Count
+						{
+						Sequence:=StartSequence+A_Index-1, Entry:=this.FrameLookupTable[(this.CycleEntries[Sequence,"IndexIntoFLT"])+Indexi]
+						W:=this.FrameEntries[Entry,"Width"], H:=this.FrameEntries[Entry,"Height"]
+						X:=this.FrameEntries[Entry,"CenterX"], Y:=this.FrameEntries[Entry,"CenterY"]
+						FramePointer:=this.FrameEntries[Entry,"FramePointer"]
+						this._Composite(this.FrameData[FramePointer],X,Y,W,H,Canvas,CanvasWidth,CanvasHeight,ShiftX,ShiftY,this.Stats.TransColorIndex)
+						If (Sequence>StartSequence)
+							this._SetFrame1Trans(FramePointer,Entry)
+						}
+					;;; Set Canvas to Frame ;;;
+					Entry:=this.FrameLookupTable[Idx+Indexi]
+					FramePointer:=this.FrameEntries[Entry,"FramePointer"]
+					this.FrameData[FramePointer]:=Canvas
+					this.FrameEntries[Entry,"Width"]:=CanvasWidth
+					this.FrameEntries[Entry,"Height"]:=CanvasHeight
+					this.FrameEntries[Entry,"CenterX"]:=ShiftX
+					this.FrameEntries[Entry,"CenterY"]:=ShiftY
+					this.FrameEntries[Entry,"RLE"]:=0
+					}
+				}
+			}
+		this._UpdateStats()
 		Console.Send("Montaged Frames in " (QPC(1)-tic) " sec.`r`n","-I")
 	}
 	_ModXOffset(Val:=""){
@@ -4319,7 +4629,7 @@ SetSettings(){
 	Settings.DropUnusedPaletteEntries:=0		; | 0=OFF | 1=ON | 2=only from end |
 	Settings.SearchTransColor:=1				; BG1/PST TransColor might not be palette entry 0 (so you should search)
 	Settings.ForceTransColor:=0
-	Settings.ForceShadowColor:=0				; 0=None | 1=Force | 2=Move | 3=Insert (move will insert if fails)
+	Settings.ForceShadowColor:=0				; 0=None | 1=Force | 2=Move | 3=Insert (move will insert if fails) | -1=Ensure No Shadow color
 	Settings.AlphaCutoff:=0 ;10
 	Settings.AllowShortPalette:=0
 	

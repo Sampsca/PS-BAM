@@ -762,6 +762,8 @@ class PSBMP{
 		this.Frame:={}, this.FrameUP:={}, this.FrameUP.SetCapacity(Width*Height)
 		If !pToken
 			pToken:=Gdip_Startup(), LocalShutDown:=1
+		Else
+			LocalShutDown:=0
 		pBitmap:=this.GDIPlus_pBitmapFromBuffer(this.Raw,this.Stats.FileSize,this.GetAddress("Raw"))
 		Index:=A:=R:=G:=B:=0
 		Loop, % Abs(Height)
