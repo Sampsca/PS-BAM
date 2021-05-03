@@ -17,7 +17,7 @@ OnError("Traceback")
 
 try {
 
-Global PS_Version:="v0.0.0.20a"
+Global PS_Version:="v0.0.0.21a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -4337,6 +4337,52 @@ class ProcessBAM extends DebugBAM{
 					this.FrameEntries[Entry,"RLE"]:=0
 					}
 				}
+			}
+		Else If InStr(Settings.Montage,"DescriptionIcon")
+			{
+			;;; Recalculate Offsets ;;;
+			If InStr(Settings.Montage,"IgnoreOffsets")
+				this._SetBAMProfile("DescriptionIcon")
+			;;; Dimension calculations ;;;
+			MinCenterX:=MinCenterY:=1000000, MaxWidth:=MaxHeight:=MaxCenterX:=MaxCenterY:=CanvasWidth:=CanvasHeight:=0
+			Loop, % this.Stats.CountOfCycles
+				{
+				Sequence:=A_Index-1
+				SzArr:=this._GetSequenceCanvasDimensions(Sequence,MinCenterX,MinCenterY,MaxWidth,MaxHeight,MaxCenterX,MaxCenterY,CanvasWidth,CanvasHeight)
+				ShiftX:=(MinCenterX<0?0-MinCenterX:0), ShiftY:=(MinCenterY<0?0-MinCenterY:0)
+				}
+			;;; Create virtual canvas ;;;
+			Canvas:="", Canvas:={}, Canvas.SetCapacity(Px:=CanvasWidth*CanvasHeight)
+			Loop, %Px%
+				Canvas[A_Index-1]:=this.Stats.TransColorIndex
+			;;; Add all frames to canvas ;;;
+			Loop, % this.Stats.CountOfCycles
+				{
+				Sequence:=A_Index-1
+				Idx:=this.CycleEntries[Sequence,"IndexIntoFLT"]
+					Loop, % this.CycleEntries[Sequence,"CountOfFrameIndices"]
+						{
+						Indexi:=A_Index-1
+						Entry:=this.FrameLookupTable[Idx+Indexi]
+						W:=this.FrameEntries[Entry,"Width"], H:=this.FrameEntries[Entry,"Height"]
+						X:=this.FrameEntries[Entry,"CenterX"], Y:=this.FrameEntries[Entry,"CenterY"]
+						FramePointer:=this.FrameEntries[Entry,"FramePointer"]
+						this._Composite(this.FrameData[FramePointer],X,Y,W,H,Canvas,CanvasWidth,CanvasHeight,ShiftX,ShiftY,this.Stats.TransColorIndex)
+						}
+				}
+			;;; Set Canvas to Frame ;;;
+			; Clear all FrameData and FrameEntries ;
+			this.FrameData:="", this.FrameData:={}, this.FrameEntries:="", this.FrameEntries:={}, this.FrameLookupTable:="", this.FrameLookupTable:={}, this.CycleEntries:="", this.CycleEntries:={}
+			; Save composited frame back into BAM ;
+			this.FrameData[0]:=Canvas
+			this.FrameEntries[0,"Width"]:=CanvasWidth
+			this.FrameEntries[0,"Height"]:=CanvasHeight
+			this.FrameEntries[0,"CenterX"]:=CanvasWidth//2
+			this.FrameEntries[0,"CenterY"]:=CanvasHeight//2
+			this.FrameEntries[0,"FramePointer"]:=0
+			this.FrameEntries[0,"RLE"]:=0
+			this.FrameLookupTable[0]:=0
+			this.CycleEntries[0,"CountOfFrameIndices"]:=1, this.CycleEntries[0,"IndexIntoFLT"]:=0
 			}
 		this._UpdateStats()
 		Console.Send("Montaged Frames in " (QPC(1)-tic) " sec.`r`n","-I")
