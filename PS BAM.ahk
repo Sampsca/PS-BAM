@@ -17,7 +17,7 @@ OnError("Traceback")
 
 try {
 
-Global PS_Version:="v0.0.0.19a"
+Global PS_Version:="v0.0.0.20a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -3675,7 +3675,7 @@ class ProcessBAM extends DebugBAM{
 	_Montage(Input){ ; Combines frames into a single frame.
 		tic:=QPC(1)
 		this._TrimFrames()
-		If (Settings.Montage="1x2")	; (rows x columns) ; Inventory Paperdoll Specific
+		If (Settings.Montage="Paperdoll")	; (rows x columns) ; Inventory Paperdoll Specific
 			{
 			; Dimension calculations:
 			MinX:=MinY:=MinWidth:=MinHeight:=2000, MaxX:=MaxY:=MaxWidth:=MaxHeight:=0, CanvasWidth:=CanvasHeight:=1
