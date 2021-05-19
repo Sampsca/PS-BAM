@@ -17,7 +17,7 @@ OnError("Traceback")
 
 try {
 
-Global PS_Version:="v0.0.0.21a"
+Global PS_Version:="v0.0.0.22a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -287,6 +287,11 @@ ProcessFile(Input,Output){
 		If (Settings.Save="BAM")
 			{
 			Console.DebugLevel:=Settings.DebugLevelS
+			;~ For k,v in BAM.Palette
+				;~ {
+				;~ If (k>0)
+					;~ v["RR"]:=0, v["GG"]:=0, v["BB"]:=0, v["AA"]:=0
+				;~ }
 			BAM.SaveBAM(Output ".bam")
 			}
 		Else IF (Settings.Save="BAMD")
@@ -645,9 +650,17 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 				this.CycleEntries[key,"IndexIntoFLT"]:=0
 				}
 			}
-		If !IsObject(PalObj) AND (Settings.ReplacePaletteMethod<>"Quant")
-			PalObj:=this._ReadBAMDPalette("",FirstFramePath)
-		If PalObj.Count()	; We loaded a palette from somewhere
+		If !PalObj.Count() AND (Settings.ReplacePaletteMethod<>"Quant")
+			{
+			If FileExist(Settings.ReplacePalette)
+				{
+				PalObj:=this._ReadBAMDPalette("",Settings.ReplacePalette)
+				}
+			If !PalObj.Count()
+				PalObj:=this._ReadBAMDPalette("",FirstFramePath)
+			}
+		this._TransformTransparency(UPFrames,PalObj,255,0)
+		If PalObj.Count() AND (Settings.ReplacePaletteMethod<>"Quant")	; We loaded a palette from somewhere
 			{
 			this.Palette:=PalObj
 			Histo:=""
@@ -702,9 +715,9 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 				PalObj:=PAL.ImportPaletteFromFile(Settings.ReplacePalette)
 				Settings.ReplacePalette:="" ; Edited 20210203
 				}
-			If !IsObject(PalObj) AND IMT.HasKey("Palette")
+			If !PalObj.Count() AND IMT.HasKey("Palette")
 				PalObj:=PAL.ImportPaletteFromFile(IMT["Palette"]), IMT.Delete("Palette")
-			If !IsObject(PalObj)
+			If !PalObj.Count()
 				PalObj:=PAL.ImportPaletteFromFile(IMT[0,0])
 			PAL.TransformTransparency(255,0)
 			PalObj:=Pal.GetPaletteObj()
@@ -726,6 +739,8 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 		PalObjQ[Idx,"RR"]:=0, PalObjQ[Idx,"GG"]:=0, PalObjQ[Idx,"BB"]:=0, PalObjQ[Idx,"AA"]:=0
 		For Sequence, SequenceObj in IMT	; For each Sequence
 			{
+			If (Sequence="Palette")
+				Continue
 			this.CycleEntries[Index:=this.CycleEntries.Count(),"CountOfFrameIndices"]:=0
 			this.CycleEntries[Index,"IndexIntoFLT"]:=this.FrameLookupTable.Count()
 			For Frame, FramePath in SequenceObj	; For each Frame
@@ -2142,6 +2157,40 @@ class ImBAMIO extends CompressBAM{
 				v["RR"]:=ToRR, v["GG"]:=ToGG, v["BB"]:=ToBB, v["AA"]:=ToAA
 			}
 	}
+	_TransformTransparency(ByRef FrameObjUP,ByRef PalObj,From:="",To:=255){
+		If (From="")
+			{
+			If IsObject(PalObj)
+				{
+				For k,v in PalObj
+					v["AA"]:=(To=-1?v["AA"]^255:To)
+				}
+			If IsObject(FrameObjUP)
+				{
+				For k,v in FrameObjUP
+					v["AA"]:=(To=-1?v["AA"]^255:To)
+				}
+			}
+		Else
+			{
+			If IsObject(PalObj)
+				{
+				For k,v in PalObj
+					{
+					If (v["AA"]=From)
+						v["AA"]:=(To=-1?v["AA"]^255:To)
+					}
+				}
+			If IsObject(FrameObjUP)
+				{
+				For k,v in FrameObjUP
+					{
+					If (v["AA"]=From)
+						v["AA"]:=(To=-1?v["AA"]^255:To)
+					}
+				}
+			}
+		}
 	_AddBAMToQuant(ByRef BAMObj,ByRef Quant){
 		For FrameNum,v1 in BAMObj.FrameData
 			{
