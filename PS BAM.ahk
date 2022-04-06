@@ -1,5 +1,5 @@
 ﻿;
-; AutoHotkey Version: 1.1.33.08
+; AutoHotkey Version: 1.1.33.10
 ; Language:       English
 ; Platform:       Optimized for Windows 10
 ; Author:         Sam.
@@ -17,7 +17,7 @@ OnError("Traceback")
 
 try {
 
-Global PS_Version:="v0.0.0.22a"
+Global PS_Version:="v0.0.0.23a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -37,7 +37,7 @@ If (Settings.MaxThreads>1)
 	Settings.LogFile:=""
 	}
 
-Global Console:=New PushLog("////////////////////////////////////////////////////////////`r`n// PS BAM " PS_Version ", Copyright (c) 2012-2021 Sam Schmitz //`r`n////////////////////////////////////////////////////////////",Settings.LogFile,2)
+Global Console:=New PushLog("////////////////////////////////////////////////////////////`r`n// PS BAM " PS_Version ", Copyright (c) 2012-2022 Sam Schmitz //`r`n////////////////////////////////////////////////////////////",Settings.LogFile,2)
 
 ;~ InPath:=A_ScriptDir "\mdr11207.bam"
 ;~ InPath:=A_ScriptDir "\CDMF4G12_orig.bam"
@@ -95,7 +95,7 @@ ProcessCLIArgOpt(){
 			{
 			Console.ModifySavePath(Settings.LogFile) ; was Console.SavePath:=Settings.LogFile
 			FormatTime, TimeString, ,MMMM dd, yyyy 'at' h:mm.ss tt
-			Console.Send("////////////////////////////////////////////////////////////`r`n// PS BAM " PS_Version ", Copyright (c) 2012-2021 Sam Schmitz //`r`n////////////////////////////////////////////////////////////`r`nInitializing logging of errors and warnings on " TimeString ".`r`n","",-1)
+			Console.Send("////////////////////////////////////////////////////////////`r`n// PS BAM " PS_Version ", Copyright (c) 2012-2022 Sam Schmitz //`r`n////////////////////////////////////////////////////////////`r`nInitializing logging of errors and warnings on " TimeString ".`r`n","",-1)
 			}
 		Console.Send("//////////////////// Settings ////////////////////`r`n","-I")
 		
@@ -1483,6 +1483,7 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 		; Initialize space to store paletted frame data
 		this.FrameData:={}, this.FrameData.SetCapacity(this.Stats.CountOfFrameEntries)
 		; Load an external palette if directed to do so
+		PalObj:={}
 		If FileExist(Settings.ReplacePalette) AND (Settings.ReplacePaletteMethod<>"Quant")
 			PalObj:=this._ReadBAMDPalette("",Settings.ReplacePalette)
 		If PalObj.Count()	; We loaded a palette from somewhere
@@ -1743,7 +1744,10 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			{
 			Index:=A_Index-1
 			If (this.Palette[Index,"AA"]>0) AND (this.Palette[Index,"AA"]<>"")
+				{
 				this.Stats.PaletteHasAlpha:=1
+				Break
+				}
 			}
 		this.Stats.CountOfFrameEntries:=this.FrameEntries.Count() ;MaxIndex()+1
 		this.Stats.RLE:=0
@@ -1865,10 +1869,40 @@ class ExBAMIO extends ImBAMIO{
 			{
 			Entry:=this._GetFrameData1stFrameEntry(FrameNum)
 			Width:=this.FrameEntries[Entry,"Width"], Height:=this.FrameEntries[Entry,"Height"]
+			
+			
+			TempPalette:=ObjFullyClone(this.Palette), FrameObjUP:=""
+			If (Settings.ExportWithTransparency=0) ; Explicitly disable transparency
+				{
+				If ((OutExtension="PNG") AND (this.Stats.PaletteHasAlpha=1)) OR (BitDepth=32) ; Opaque is AA=255
+					this._TransformTransparency(FrameObjUP,TempPalette,"",255)
+				Else ; Opaque is AA=0
+					this._TransformTransparency(FrameObjUP,TempPalette,"",0)
+				}
+			Else If (Settings.ExportWithTransparency>=1) ; Default transparency handling
+				{
+				If ((OutExtension="PNG") AND (this.Stats.PaletteHasAlpha=1)) OR (BitDepth=32) ; Opaque is AA=255
+					{
+					this._TransformTransparency(FrameObjUP,TempPalette,0,255)
+					If (Settings.ExportWithTransparency=2) ; Additionally enable background and shadow color transparency
+						{
+						TempPalette[this.Stats.TransColorIndex,"AA"]:=0
+						If (this.Stats.ShadowColorIndex<>-1)
+							TempPalette[this.Stats.ShadowColorIndex,"AA"]:=128
+						}
+					}
+				}
+			
+			
 			BMP:=New PSBMP()
-			BMP.LoadBMPFromFrameObj(this.FrameData[FrameNum],this.Palette,"",Width,Height)
-			If (BitDepth=32)
-				BMP.TransformTransparency(0,255)
+			BMP.LoadBMPFromFrameObj(this.FrameData[FrameNum],TempPalette,"",Width,Height)
+			If (OutExtension="PNG") AND (this.Stats.PaletteHasAlpha=1)
+				{
+				;BMP.TransformTransparency(0,255)
+				BitDepth:=32, Version:=5
+				}
+			;Else If (BitDepth=32)
+				;BMP.TransformTransparency(0,255)
 			If (OutExtension="BMP")
 				{
 				BMP.SaveBMPToFile(Output0,BitDepth,Version)
@@ -1890,7 +1924,28 @@ class ExBAMIO extends ImBAMIO{
 	ExportPalette(Type,OutPath){
 		tic:=QPC(1)
 		PAL:=New PSPAL()
-		PAL.ExportPalette(this.Palette,Type,OutPath,"",this.Stats.TransColorIndex)
+		TempPalette:=ObjFullyClone(this.Palette), FrameObjUP:=""
+		If (Settings.ExportWithTransparency=0) ; Explicitly disable transparency
+			{
+			If (Type="PNGV") ; Opaque is AA=255
+				this._TransformTransparency(FrameObjUP,TempPalette,"",255)
+			Else ; Opaque is AA=0
+				this._TransformTransparency(FrameObjUP,TempPalette,"",0)
+			}
+		Else If (Settings.ExportWithTransparency>=1) ; Default transparency handling
+			{
+			If (Type="PNGV") ; Opaque is AA=255
+				{
+				this._TransformTransparency(FrameObjUP,TempPalette,0,255)
+				If (Settings.ExportWithTransparency=2) ; Additionally enable background and shadow color transparency
+					{
+					TempPalette[this.Stats.TransColorIndex,"AA"]:=0
+					If (this.Stats.ShadowColorIndex<>-1)
+						TempPalette[this.Stats.ShadowColorIndex,"AA"]:=128
+					}
+				}
+			}
+		PAL.ExportPalette(TempPalette,Type,OutPath,"",this.Stats.TransColorIndex)
 		PAL:=""
 		Console.Send("Palette exported in '" Type "' format in " (QPC(1)-tic) " sec.`r`n","-I")
 	}
@@ -2038,7 +2093,7 @@ class ExBAMIO extends ImBAMIO{
 			Idx:=hGIF.AddFrame(this.FrameData[this.FrameEntries[Entry,"FramePointer"]])	; Was v
 			
 			hGIF.SetImageDescriptor(Idx,CenterX,CenterY,Width,Height)
-			hGIF.AddGraphicsControlExtension(Idx,"Frame",2,0,1,10,this.Stats.TransColorIndex)
+			hGIF.AddGraphicsControlExtension(Idx,"Frame",2,0,(Settings.ExportWithTransparency=0?0:1),10,this.Stats.TransColorIndex)
 			}
 		If (Settings.Unify=2)
 			PageWidth:=(PageHeight>PageWidth?PageHeight:PageWidth), PageHeight:=(PageWidth>PageHeight?PageWidth:PageHeight)
@@ -2341,8 +2396,11 @@ class CompressBAM extends ProcessBAM{
 			this._AlphaCutoff(Settings.AlphaCutoff), Console.Send("Setting pixels with transparency between 1 and " Settings.AlphaCutoff " (inclusive) to TransColor." "`r`n","I")
 		If (Settings.ForceTransColor=1)
 			this._ForceTransColor(), Console.Send("Transparent color set to Green and Palette Entry 0" "`r`n","I")
-		If (Settings.ForceShadowColor>=1)
-			(this._ForceShadowColor()=1?Console.Send("Shadow color set to Black and Palette Entry 1." "`r`n","I"):"")
+		If (Settings.ForceShadowColor!=0)
+			{
+			Val:=this._ForceShadowColor(Settings.ForceShadowColor)
+			(Val=1?Console.Send("Shadow color set to Black and Palette Entry 1." "`r`n","I"):""), (Val=-1?Console.Send("Shadow color set to RGBA(1,1,1,0) and Palette Entry 1." "`r`n","I"):"")
+			}
 		If (Settings.DropDuplicatePaletteEntries=1)
 			NumRemoved:=this._DropDuplicatePaletteEntries(), Console.Send("Dereferenced " NumRemoved " duplicate Palette Entries." "`r`n","I")
 		If (Settings.DropUnusedPaletteEntries=1)
@@ -2515,6 +2573,16 @@ class CompressBAM extends ProcessBAM{
 			If (this.Palette[Index,"AA"]=255)
 				this.Palette[Index,"AA"]:=0
 			}
+		this.Stats["PaletteHasAlpha"]:=0
+		Loop, % this.Stats.CountOfPaletteEntries
+			{
+			Index:=A_Index-1
+			If (this.Palette[Index,"AA"]>0) AND (this.Palette[Index,"AA"]<>"")
+				{
+				this.Stats["PaletteHasAlpha"]:=1
+				Break
+				}
+			}
 	}
 	_DropDuplicatePaletteEntries(){
 		; Set palette entries with Alapha=255 to Alpha=0 b/c of how alpha in BAM files are handled
@@ -2587,9 +2655,15 @@ class CompressBAM extends ProcessBAM{
 			}
 		this.Stats.TransColorIndex:=this._MovePaletteEntry(this.Stats.TransColorIndex,0)
 	}
-	_ForceShadowColor(Method:=1){	; 0=None | 1=Force | 2=Move | 3=Insert
+	_ForceShadowColor(Method:=1){	; -1=Ensure no shadow | 0=None | 1=Force | 2=Move | 3=Insert | 4=Search
 		If (Method=0)
 			Return 0
+		If (Method=-1) AND ((this._IsPaletteEntry(1,0,0,0,0)) OR (this._IsPaletteEntry(1,0,0,0,255)))
+			{
+			this._SetPaletteEntry(1,1,1,1,0)
+			this.Stats.ShadowColorIndex:=-1
+			Return -1
+			}
 		If (Method=1)
 			{
 			this.Stats.ShadowColorIndex:=this._SetPaletteEntry(1,0,0,0,0)
@@ -2615,7 +2689,7 @@ class CompressBAM extends ProcessBAM{
 					}
 				}
 			}
-		If (Method>=2)
+		If (Method=2) OR (Method=3)
 			{
 			If (this.Stats.CountOfPaletteEntries<256)
 				{
@@ -2639,6 +2713,40 @@ class CompressBAM extends ProcessBAM{
 					}
 				}
 			Return this._ForceShadowColor(1)
+			}
+		If (Method=4) ; Search for whatever color looks like it's used for the shadow
+			{
+			Idx:=this.CycleEntries[0,"IndexIntoFLT"], Cnt:=this.CycleEntries[0,"CountOfFrameIndices"], Entry:=this.FrameLookupTable[Idx]
+			FrameObj:=this.FrameData[this.FrameEntries[Entry,"FramePointer"]]
+			If (Cnt>0) AND (Entry<>"")
+				{
+				Width:=this.FrameEntries[Entry,"Width"], Height:=this.FrameEntries[Entry,"Height"]
+				If (Width=0) OR (Height=0) ; Fail
+					Return this._ForceShadowColor(2)
+				Else
+					{
+					Arr:="", Arr:={}
+					Loop, %Height%
+						{
+						Row:=A_Index
+						Loop, %Width%
+							{
+							Pixel:=FrameObj[Width*Row-A_Index]
+							If (Pixel=0) ; Transparent
+								Continue
+							Arr.Push(Pixel)
+							Break
+							}
+						}
+					Index:=Mode(Arr,Height)
+					Console.Send("Shadow appears to use palette index " Index " = RGBA(" this.Palette[Index,"RR"] "," this.Palette[Index,"GG"] "," this.Palette[Index,"BB"] "," this.Palette[Index,"AA"] ")." "`r`n","I")
+					this._MovePaletteEntry(Index,1)
+					this.Stats.ShadowColorIndex:=this._SetPaletteEntry(1,0,0,0,0)
+					Return 1
+					}
+				}
+			Else ; Fail
+				Return this._ForceShadowColor(2)
 			}
 		Return 0
 	}
@@ -2697,6 +2805,16 @@ class CompressBAM extends ProcessBAM{
 				this.Palette[Index,"GG"]:=this.Palette[this.Stats.TransColorIndex,"GG"]
 				this.Palette[Index,"BB"]:=this.Palette[this.Stats.TransColorIndex,"BB"]
 				this.Palette[Index,"AA"]:=this.Palette[this.Stats.TransColorIndex,"AA"]
+				}
+			}
+		this.Stats["PaletteHasAlpha"]:=0
+		Loop, % this.Stats.CountOfPaletteEntries
+			{
+			Index:=A_Index-1
+			If (this.Palette[Index,"AA"]>0) AND (this.Palette[Index,"AA"]<>"")
+				{
+				this.Stats["PaletteHasAlpha"]:=1
+				Break
 				}
 			}
 	}
@@ -4689,9 +4807,9 @@ SetSettings(){
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	Settings.OutPath:=A_ScriptDir "\compressed" ; Because Windows is stupid, OutPath must NOT end in a "\" when passed to PS BAM as a parameter.
 	;~ Settings.OutPathSpecific:=""
-	Settings.DebugLevelL:=1
-	Settings.DebugLevelP:=2
-	Settings.DebugLevelS:=1
+	Settings.DebugLevelL:=1				; | -1 | 0 | 1 | 2 |
+	Settings.DebugLevelP:=2				; | -1 | 0 | 1 | 2 |
+	Settings.DebugLevelS:=1				; | -1 | 0 | 1 | 2 |
 	Settings.LogFile:=""
 	Settings.VerifyOutput:=0
 	;Settings.MaxThreads:=4
@@ -4702,9 +4820,10 @@ SetSettings(){
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	Settings.Save:="BAM"				; | BAM | BAMD | GIF |	; (BAMD takes frame filetype from Settings.ExportFrames)
 	;Settings.Compress:=1				; Depreciated
-	Settings.ExportPalette:=""			; | ACT | ALL | Bin | BMP | BMPV | PAL | Raw |
-	Settings.ExportFrames:=""			; | BMP | DIB | GIF | JFIF | JPE | JPEG | JPG | PNG | RLE | TIF | TIFF || BMP,8V3 | BMP,24V3 | BMP,32V5 |
+	Settings.ExportPalette:=""			; | ACT | ALL | Bin | BMP | BMPV | PAL | Raw | PNGV |
+	Settings.ExportFrames:=""			; | BMP | DIB | GIF | JFIF | JPE | JPEG | JPG | PNG | RLE | TIF | TIFF | BMP,8V3 | BMP,24V3 | BMP,32V5 |
 	Settings.ExportFramesAsSequences:=0
+	Settings.ExportWithTransparency:=1	; 0 = Explicitly disable transparency; 1 = Default transparency handling; 2 = Additionally enable background and shadow color transparency
 	;~ Settings.CompressFirst:=1		; Depreciated
 	;~ Settings.ProcessFirst:=0			; Depreciated
 	Settings.OrderOfOperations:="PCE"	; P = Process; C = Compress; E = Export; in any order.  e.g. | CPE | CEP | PCE | PEC | EPC | ECP |
@@ -4724,13 +4843,13 @@ SetSettings(){
 	Settings.DropUnusedPaletteEntries:=0		; | 0=OFF | 1=ON | 2=only from end |
 	Settings.SearchTransColor:=1				; BG1/PST TransColor might not be palette entry 0 (so you should search)
 	Settings.ForceTransColor:=0
-	Settings.ForceShadowColor:=0				; 0=None | 1=Force | 2=Move | 3=Insert (move will insert if fails) | -1=Ensure No Shadow color
+	Settings.ForceShadowColor:=0				; -1=Ensure No Shadow color | 0=None | 1=Force | 2=Move | 3=Insert (move will insert if fails) | 4=Search
 	Settings.AlphaCutoff:=0 ;10
 	Settings.AllowShortPalette:=0
 	
 	Settings.TrimFrameData:=0
-		Settings.ExtraTrimBuffer:=2		; 2
-		Settings.ExtraTrimDepth:=3		; 3
+		Settings.ExtraTrimBuffer:=0		; 2
+		Settings.ExtraTrimDepth:=0		; 3
 		Settings.ReduceFrameRowLT:=0
 		Settings.ReduceFrameColumnLT:=0
 		Settings.ReduceFramePixelLT:=0
@@ -4759,7 +4878,7 @@ SetSettings(){
 	Settings.Unify:=0					; | 0=Off | 1=On | 2=Square |
 	Settings.Fill:=""					; widthXheight,orientation		Note:  EITHER width or height may be zero, indicating no change.  orientation may be any of:  | NorthWest | TopLeft | NorthEast | TopRight | SouthWest | BottomLeft | SouthEast | BottomRight | North | Top | East | Right | South | Bottom | West | Left |
 	;Settings.UnifyTransFrameAlt		; Not implemented.  Could be used to toggle "this._IsFrameTrans()" in Unify.
-	Settings.Montage:=""
+	Settings.Montage:=""				; | Paperdoll | DescriptionIcon | 2x2SplitCreAnim | 2x2External | 2x2ExternalIgnoreOffsets | 1x2External | 2x1External | 1x2ExternalIgnoreOffsets | 2x1ExternalIgnoreOffsets | 3x3SplitCreAnim | [or other (rows x columns) using sequences within same BAM]
 	Settings.ModXOffset:=0
 	Settings.ModYOffset:=0
 	Settings.SetXOffset:=""
@@ -4861,13 +4980,13 @@ st_printArr(array, depth=5, indentLevel=""){
    return rtrim(list)
 }
 
-;~ ObjFullyClone(obj){	; https://autohotkey.com/board/topic/103411-cloned-object-modifying-original-instantiation/?p=638500
-    ;~ nobj:=ObjClone(obj)
-    ;~ For k,v in nobj
-        ;~ If IsObject(v)
-            ;~ nobj[k]:=ObjFullyClone(v)
-    ;~ Return nobj
-;~ }
+ObjFullyClone(obj){	; https://autohotkey.com/board/topic/103411-cloned-object-modifying-original-instantiation/?p=638500
+    nobj:=ObjClone(obj)
+    For k,v in nobj
+        If IsObject(v)
+            nobj[k]:=ObjFullyClone(v)
+    Return nobj
+}
 
 FormatStr(String:="",Filler:="",Length:=0,Justify:="R"){
 	tmp:=""
@@ -4978,6 +5097,27 @@ GetArrAvg(ByRef Arr){
 	Loop, %Len%
 		Sum+=Arr[A_Index]
 	Return (Sum/Len)
+}
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;      Returns the most frequent value in an array.       ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; If there are multiple values with the same frequency,   ;;;
+;;;   the one with the lowest index (either alphabetically  ;;;
+;;;   or numerically depending on the contents of the array ;;;
+;;;   [numerically having priority]) will be returned.      ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+Mode(Array,GuessNumUniqueVals:=1){
+	Local
+	LUT:={}, Count:=0, Mode:="", LUT.SetCapacity(GuessNumUniqueVals) ; Performance can be improved by pre-allocating the number of keys in LUT if you know something about how many unique values to expect
+	For k,v in Array
+		(LUT.HasKey(v)?LUT[v]+=1:LUT[v]:=1)
+	For k,v in LUT
+		{
+		If (v>Count)
+			Count:=v, Mode:=k
+		}
+	Return Mode
 }
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;	Gdip	;;;;;;;;;;;;;;;;;;;;;;;;;

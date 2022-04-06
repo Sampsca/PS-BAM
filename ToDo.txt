@@ -45,3 +45,10 @@ Emulate multithreading based on count of processor cores and user variable.
 	Allow export frames in desired format (missing higher bit depths for BMPs)
 
 	Implement better exception handling
+
+	Export PNG as 32-bit if PaletteHasAlpha=1
+	Add ability to export palette as PNGV
+	Add --ExportWithTransparency option to fine tune transparency handling
+	_SetOpaquePalette0() and _AlphaCutoff() update Stats.PaletteHasAlpha
+	Added additional parameter to --SearchShadowColor option to search for whichever color is used for the shadow
+	Fixed bug preventing specified parameter being passed to --SearchShadowColor
