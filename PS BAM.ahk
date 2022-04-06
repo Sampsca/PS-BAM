@@ -17,7 +17,7 @@ OnError("Traceback")
 
 try {
 
-Global PS_Version:="v0.0.0.23a"
+Global PS_Version:="v0.0.0.24a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -1879,24 +1879,27 @@ class ExBAMIO extends ImBAMIO{
 				Else ; Opaque is AA=0
 					this._TransformTransparency(FrameObjUP,TempPalette,"",0)
 				}
-			Else If (Settings.ExportWithTransparency>=1) ; Default transparency handling
+			Else If (Settings.ExportWithTransparency=1) ; Default transparency handling
 				{
 				If ((OutExtension="PNG") AND (this.Stats.PaletteHasAlpha=1)) OR (BitDepth=32) ; Opaque is AA=255
 					{
 					this._TransformTransparency(FrameObjUP,TempPalette,0,255)
-					If (Settings.ExportWithTransparency=2) ; Additionally enable background and shadow color transparency
-						{
-						TempPalette[this.Stats.TransColorIndex,"AA"]:=0
-						If (this.Stats.ShadowColorIndex<>-1)
-							TempPalette[this.Stats.ShadowColorIndex,"AA"]:=128
-						}
+					}
+				}
+			Else If (Settings.ExportWithTransparency=2) ; Additionally enable background and shadow color transparency
+				{
+				If (OutExtension="PNG") OR (BitDepth=32) ; Opaque is AA=255
+					{
+					this._TransformTransparency(FrameObjUP,TempPalette,0,255)
+					TempPalette[this.Stats.TransColorIndex,"AA"]:=0
+					If (this.Stats.ShadowColorIndex<>-1)
+						TempPalette[this.Stats.ShadowColorIndex,"AA"]:=128
 					}
 				}
 			
-			
 			BMP:=New PSBMP()
 			BMP.LoadBMPFromFrameObj(this.FrameData[FrameNum],TempPalette,"",Width,Height)
-			If (OutExtension="PNG") AND (this.Stats.PaletteHasAlpha=1)
+			If (OutExtension="PNG") AND ((this.Stats.PaletteHasAlpha=1) OR (Settings.ExportWithTransparency=2))
 				{
 				;BMP.TransformTransparency(0,255)
 				BitDepth:=32, Version:=5
