@@ -98,7 +98,7 @@ Here is a full list of all possible settings, and their default values:
 --ExportPalette ""		; | ACT | ALL | Bin | BMP | BMPV | PAL | Raw | PNGV |
 --ExportFrames ""		; | BMP | DIB | GIF | JFIF | JPE | JPEG | JPG | PNG | RLE | TIF | TIFF || BMP,8V3 | BMP,24V3 | BMP,32V5 |
 --ExportFramesAsSequences 0
---ExportWithTransparency 1	; 0 = Explicitly disable transparency; 1 = Default transparency handling; 2 = Additionally enable background and shadow color transparency
+--ExportWithTransparency 1	; -1 = Explicitly disable transparency; 0 or 1 = Default transparency handling; 2 = Additionally enable background and shadow color transparency
 --OrderOfOperations "PCE"	; P = Process; C = Compress; E = Export; in any order.  e.g. | CPE | CEP | PCE | PEC | EPC | ECP |
 --SingleGIF 0
 --ReplacePalette ""

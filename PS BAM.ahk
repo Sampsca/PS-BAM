@@ -17,7 +17,7 @@ OnError("Traceback")
 
 try {
 
-Global PS_Version:="v0.0.0.26a"
+Global PS_Version:="v0.0.0.27a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -1882,14 +1882,14 @@ class ExBAMIO extends ImBAMIO{
 			
 			
 			TempPalette:=ObjFullyClone(this.Palette), FrameObjUP:=""
-			If (Settings.ExportWithTransparency=0) ; Explicitly disable transparency
+			If (Settings.ExportWithTransparency=-1) ; Explicitly disable transparency
 				{
 				If ((OutExtension="PNG") AND (this.Stats.PaletteHasAlpha=1)) OR (BitDepth=32) ; Opaque is AA=255
 					this._TransformTransparency(FrameObjUP,TempPalette,"",255)
 				Else ; Opaque is AA=0
 					this._TransformTransparency(FrameObjUP,TempPalette,"",0)
 				}
-			Else If (Settings.ExportWithTransparency=1) ; Default transparency handling
+			Else If (Settings.ExportWithTransparency=0) OR (Settings.ExportWithTransparency=1) ; Default transparency handling
 				{
 				If ((OutExtension="PNG") AND (this.Stats.PaletteHasAlpha=1)) OR (BitDepth=32) ; Opaque is AA=255
 					{
@@ -1938,14 +1938,14 @@ class ExBAMIO extends ImBAMIO{
 		tic:=QPC(1)
 		PAL:=New PSPAL()
 		TempPalette:=ObjFullyClone(this.Palette), FrameObjUP:=""
-		If (Settings.ExportWithTransparency=0) ; Explicitly disable transparency
+		If (Settings.ExportWithTransparency=-1) ; Explicitly disable transparency
 			{
 			If (Type="PNGV") ; Opaque is AA=255
 				this._TransformTransparency(FrameObjUP,TempPalette,"",255)
 			Else ; Opaque is AA=0
 				this._TransformTransparency(FrameObjUP,TempPalette,"",0)
 			}
-		Else If (Settings.ExportWithTransparency>=1) ; Default transparency handling
+		Else If (Settings.ExportWithTransparency>=0) ; Default transparency handling
 			{
 			If (Type="PNGV") ; Opaque is AA=255
 				{
@@ -2106,7 +2106,7 @@ class ExBAMIO extends ImBAMIO{
 			Idx:=hGIF.AddFrame(this.FrameData[this.FrameEntries[Entry,"FramePointer"]])	; Was v
 			
 			hGIF.SetImageDescriptor(Idx,CenterX,CenterY,Width,Height)
-			hGIF.AddGraphicsControlExtension(Idx,"Frame",2,0,(Settings.ExportWithTransparency=0?0:1),10,this.Stats.TransColorIndex)
+			hGIF.AddGraphicsControlExtension(Idx,"Frame",2,0,(Settings.ExportWithTransparency=-1?0:1),10,this.Stats.TransColorIndex)
 			}
 		If (Settings.Unify=2)
 			PageWidth:=(PageHeight>PageWidth?PageHeight:PageWidth), PageHeight:=(PageWidth>PageHeight?PageWidth:PageHeight)
@@ -4878,7 +4878,7 @@ SetSettings(){
 	Settings.ExportPalette:=""			; | ACT | ALL | Bin | BMP | BMPV | PAL | Raw | PNGV |
 	Settings.ExportFrames:=""			; | BMP | DIB | GIF | JFIF | JPE | JPEG | JPG | PNG | RLE | TIF | TIFF | BMP,8V3 | BMP,24V3 | BMP,32V5 |
 	Settings.ExportFramesAsSequences:=0
-	Settings.ExportWithTransparency:=1	; 0 = Explicitly disable transparency; 1 = Default transparency handling; 2 = Additionally enable background and shadow color transparency
+	Settings.ExportWithTransparency:=0	; -1 = Explicitly disable transparency; 0 or 1 = Default transparency handling; 2 = Additionally enable background and shadow color transparency
 	;~ Settings.CompressFirst:=1		; Depreciated
 	;~ Settings.ProcessFirst:=0			; Depreciated
 	Settings.OrderOfOperations:="PCE"	; P = Process; C = Compress; E = Export; in any order.  e.g. | CPE | CEP | PCE | PEC | EPC | ECP |
