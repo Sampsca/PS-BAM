@@ -14,8 +14,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;             PS_GIF             ;;;;;
-;;;;;  Copyright (c) 2018-2020 Sam.  ;;;;;
-;;;;;     Last Updated 20201231      ;;;;;
+;;;;;  Copyright (c) 2018-2022 Sam.  ;;;;;
+;;;;;     Last Updated 20220503      ;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 class PSGIF extends ExGIFIO{
@@ -39,11 +39,16 @@ class PSGIF extends ExGIFIO{
 	SaveGIFToFile(OutputPath){
 		tic:=this._QPC(1)
 		Console.Send("Saving GIF to '" OutputPath "'`r`n","-W")
-		this.Raw:=" ", this.SetCapacity("Raw",this.Stats.FileSize), DllCall("RtlFillMemory","Ptr",this.GetAddress("Raw"),"UInt",this.Stats.FileSize,"UChar",0)
-		this.DataMem:=New MemoryFileIO(this.GetAddress("Raw"),this.Stats.FileSize)
+		;this.Raw:=" ", this.SetCapacity("Raw",this.Stats.FileSize), DllCall("RtlFillMemory","Ptr",this.GetAddress("Raw"),"UInt",this.Stats.FileSize,"UChar",0)
+		;this.DataMem:=New MemoryFileIO(this.GetAddress("Raw"),this.Stats.FileSize)
+		this.DataMem:=New MemoryFileIO("",this.Stats.FileSize,"",1)
 		this._WriteGIF()
 		file:=FileOpen(OutputPath,"w-d")
-			file.RawWrite(this.GetAddress("Raw"),this.Stats.FileSize)
+			;file.RawWrite(this.GetAddress("Raw"),this.Stats.FileSize)
+		;If (this.Stats.FileSize!=this.DataMem.GetBufferSize())
+			;Console.Send("Correcting internal file size from " this.Stats.FileSize " to " this.DataMem.GetBufferSize() " sec.`r`n","W")
+		;this.Stats.FileSize:=this.DataMem.GetBufferSize()
+		file.RawWrite(this.DataMem.GetBufferAddress(),this.Stats.FileSize)
 		file.Close()
 		this.Raw:="", this.Delete("Raw"), this.DataMem:=""
 		Console.Send("Finished Saving GIF in " (this._QPC(1)-tic) " sec.`r`n","-I")
@@ -66,9 +71,11 @@ class PSGIF extends ExGIFIO{
 	}
 	SaveGIFToVar(Var){
 		tic:=this._QPC(1)
-		VarSetCapacity(Var,this.Stats.FileSize,0)
-		this.DataMem:=New MemoryFileIO(&Var,this.Stats.FileSize)
+		;VarSetCapacity(Var,this.Stats.FileSize,0)
+		;this.DataMem:=New MemoryFileIO(&Var,this.Stats.FileSize)
+		this.DataMem:=New MemoryFileIO("",this.Stats.FileSize,"",1)
 		this._WriteGIF()
+		Size:=this.DataMem.CopyBufferToVar(Var)
 		this.DataMem:=""
 		Console.Send("Finished Saving GIF in " (this._QPC(1)-tic) " sec.`r`n","-I")
 		Return this.Stats.FileSize
@@ -488,12 +495,14 @@ class PSGIF extends ExGIFIO{
 			Console.Send("OffsetToImageData = " this.Frame[Idx,"OffsetToImageData"] "`r`n","I")
 		this.Frame[Idx,"LZWMinimumCodeSize"]:=this.DataMem.ReadUChar()
 			Console.Send("LZWMinimumCodeSize = " this.Frame[Idx,"LZWMinimumCodeSize"] "`r`n","I")
-		tmp:={}
+		tmp:={}, SubBlockCnt:=1
 		While (SubBlockSize:=this.DataMem.ReadUChar())
 			{
 			Loop, %SubBlockSize%
-				tmp.Push(this.DataMem.ReadUChar())
+				tmp.Push(CurrByte:=this.DataMem.ReadUChar()) ;, Console.Send("Byte " A_Index " of " SubBlockSize " in Data SubBlock " SubBlockCnt " is " CurrByte ".`r`n","I")
+			SubBlockCnt+=1
 			}
+		Console.Send("Data SubBlock " SubBlockCnt " has size zero at offset " this.DataMem.Tell() " of " this.DataMem.Length ".`r`n","I")
 		;~ Console.Send("Original = `r`n" this._st_printArr(tmp) "`r`n","")
 		this.Frame[Idx,"Data"]:=this._LZWDecompress(tmp,this.Frame[Idx,"LZWMinimumCodeSize"],this.Frame[Idx,"ImageWidth"]*this.Frame[Idx,"ImageHeight"])
 			;Console.Send("DataStream = '" Data "'`r`n","I")
@@ -558,7 +567,7 @@ class PSGIF extends ExGIFIO{
 			Arr.Push(Footer)
 	}
 	_ClearCodeTable(LZWMinimumCodeSize){
-		Cnt:=2**LZWMinimumCodeSize, CodeTable:={}, CodeTable.SetCapacity(4096)	; This SetCapacity improves speed but potentially uses more memory than is necessary.
+		Cnt:=2**LZWMinimumCodeSize, CodeTable:="", CodeTable:={}, CodeTable.SetCapacity(4096)	; This SetCapacity improves speed but potentially uses more memory than is necessary.
 		Loop, % Cnt
 			CodeTable[Tmp:=A_Index-1]:=Tmp
 		CodeTable["CC"]:=Cnt, CodeTable["EoIC"]:=Cnt+1
@@ -638,12 +647,16 @@ class PSGIF extends ExGIFIO{
 	}
 	_LZWDecompress(ByRef ByteStream,LZWMinimumCodeSize,CountUncompressedBytes:=1){ ; CountUncompressedBytes is an optional parameter that may be used to preallocate memory.  Width*Height is a good value to use for an LZW compressed GIF frame.
 		tic:=this._QPC(1)
+		;~ Console.Send("ByteStream = `r`n" this._st_printArr(ByteStream) "`r`n","")
 		; turn ByteStream into BitStream
 		VarSetCapacity(BitStream,Len:=(f8:=(f:=(A_IsUnicode?2:1))*8)*(ByteLen:=ByteStream.Length())+13*f,0)
 		Loop, % ByteLen
 			StrPut(this._Num2Bin(ByteStream[A_Index],8),&BitStream+(Len-A_Index*f8),8)
 		StrPut("0000000000000",&BitStream,13)
 		VarSetCapacity(BitStream,-1)
+		;;Clipboard:=BitStream
+		;;MsgBox % StrLen(BitStream) " vs " Len
+		
 		NewLZWMinimumCodeSize:=LZWMinimumCodeSize+1, BitIdx:=StrLen(BitStream)-NewLZWMinimumCodeSize+1
 		; Initialize code table
 		CodeTable:=this._ClearCodeTable(LZWMinimumCodeSize)
@@ -652,16 +665,20 @@ class PSGIF extends ExGIFIO{
 		If (CODE=CodeTable["CC"])
 			CODE_1:=CODE:=this._Bin2Num(SubStr(BitStream,BitIdx,NewLZWMinimumCodeSize)), BitIdx-=NewLZWMinimumCodeSize
 		; output {CODE} to index stream
-		IndexStream:={}, IndexStream.SetCapacity(CountUncompressedBytes), IndexStream.Push(StrSplit(CodeTable[CODE],A_Space)*)
+		IndexStream:="", IndexStream:={}, IndexStream.SetCapacity(CountUncompressedBytes), IndexStream.Push(StrSplit(CodeTable[CODE],A_Space)*)
 		; <LOOP POINT>
 		While 1 ;(BitIdx>0)
 			{
 			; let CODE be the next code in the code stream
 			CODE:=this._Bin2Num(SubStr(BitStream,BitIdx,NewLZWMinimumCodeSize))
+			If Code is not Integer
+				throw Exception("CODE is not an integer",,"Bytes were " SubStr(BitStream,BitIdx,NewLZWMinimumCodeSize) ".`n`n" Traceback())
 			If (CODE=CodeTable["CC"])
 				{
+				;~ Console.Send(this._st_printArr(CodeTable) "`r`n","I")
 				CodeTable:=this._ClearCodeTable(LZWMinimumCodeSize)
-				BitIdx-=NewLZWMinimumCodeSize:=LZWMinimumCodeSize+1
+				;~ Console.Send("Code table cleared after pixel " IndexStream.Count() ".`r`n","I")
+				BitIdx-=(NewLZWMinimumCodeSize:=LZWMinimumCodeSize+1)
 				CODE_1:=CODE:=this._Bin2Num(SubStr(BitStream,BitIdx,NewLZWMinimumCodeSize)), BitIdx-=NewLZWMinimumCodeSize
 				IndexStream.Push(StrSplit(CodeTable[CODE],A_Space)*)
 				Continue
@@ -686,13 +703,19 @@ class PSGIF extends ExGIFIO{
 				IndexStream.Push(StrSplit(CodeTable[CODE_1] A_Space K,A_Space)*)
 				}
 			; add {CODE-1}+K to code table
+			If !CodeTable.HasKey(CODE_1)
+				{
+				;~ Console.Send(this._st_printArr(CodeTable) "`r`n","-I")
+				throw Exception("CODE_1[" CODE_1 "] not found in CodeTable.",,"`n`n" Traceback())
+				}
 			CodeTable[Val:=CodeTable.Count()]:=CodeTable[CODE_1] A_Space K
 			CODE_1:=CODE
-			If (Val=2**NewLZWMinimumCodeSize-1)
+			If (Val=2**NewLZWMinimumCodeSize-1) AND (Val<4095)
 				NewLZWMinimumCodeSize++
 			BitIdx-=NewLZWMinimumCodeSize
 			}
 		Console.Send("Frame decompressed in " (this._QPC(1)-tic) " sec.`r`n","-I")
+		;~ Console.Send("Pixel Bytes : `r`n" this._st_printArr(IndexStream) "`r`n","-I")
 		Return IndexStream
 	}
 }
@@ -1082,7 +1105,7 @@ class GIFProperties extends GIFTransform{
 			Loop, % this.Frame.Length()
 				{
 				If (this.Frame[A_Index,"LocalColorTableFlag"]=0)
-					this.Frame[Idx,"LZWMinimumCodeSize"]:=LZWMinimumCodeSize
+					this.Frame[A_Index,"LZWMinimumCodeSize"]:=LZWMinimumCodeSize
 				}
 			Sz:=this.GlobalColorTable["LengthOfGlobalColorTable"]:=(this.GlobalColorTable["Palette"].Length()+1)*3
 			this.Stats.FileSize+=Sz
