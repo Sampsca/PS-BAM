@@ -17,7 +17,7 @@ OnError("Traceback")
 
 try {
 
-Global PS_Version:="v0.0.0.24a"
+Global PS_Version:="v0.0.0.25a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -793,8 +793,13 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 					FrameObj:=PalObj:=FrameObjUP:=Width:=Height:=""
 					BMP:=new PSBMP()
 					BMP.LoadBMPFromFile(FramePath)
-					BMP.SetColorTransparency(0,255,0,0)
-					BMP.SetColorTransparency(0,0,0,0)
+					If (Settings.AlphaCutoff<>0)
+						{
+						TmpArr:=StrSplit(Settings.AlphaCutoff,","," `t"), LowBound:=(TmpArr.HasKey(1) AND TmpArr[1]>=0?TmpArr[1]:0), HighBound:=(TmpArr.HasKey(2) AND TmpArr[2]<=255?TmpArr[2]:255)
+						BMP.AlphaCutoffEx(2,LowBound,HighBound)
+						}
+					;BMP.SetColorTransparency(0,255,0,"",0)
+					BMP.SetColorTransparency(0,0,0,128,0)
 					BMP.TransformTransparency(255,0)
 					this.Stats.OriginalFileSize+=BMP.GetFileSize()
 					BMP.GetBMPObjects(FrameObj,PalObj,FrameObjUP,Width,Height)
@@ -962,8 +967,13 @@ class PSBAM extends ExBAMIO{	; On maximizing compression through optimization of
 			;Verbose:=Console.DebugLevel
 			;Console.DebugLevel:=1
 			BMP.LoadBMPFromFile(Path)
-			BMP.SetColorTransparency(0,255,0,0)
-			BMP.SetColorTransparency(0,0,0,0)
+			If (Settings.AlphaCutoff<>0)
+				{
+				TmpArr:=StrSplit(Settings.AlphaCutoff,","," `t"), LowBound:=(TmpArr.HasKey(1) AND TmpArr[1]>=0?TmpArr[1]:0), HighBound:=(TmpArr.HasKey(2) AND TmpArr[2]<=255?TmpArr[2]:255)
+				BMP.AlphaCutoffEx(2,LowBound,HighBound)
+				}
+			;BMP.SetColorTransparency(0,255,0,"",0)
+			BMP.SetColorTransparency(0,0,0,128,0)
 			BMP.TransformTransparency(255,0)
 			;Console.DebugLevel:=Verbose
 			FrameObj:=PalObj:=FrameObjUP:=Width:=Height:=""
@@ -2395,8 +2405,8 @@ class CompressBAM extends ProcessBAM{
 			Reduced:=this._ReduceFrameColumnCount(Settings.ReduceFrameColumnLT), Console.Send("Setting " Reduced " frames to 1x1 Trans pixel because ColumnCount<=" Settings.ReduceFrameColumnLT "`r`n","I")
 		If (Settings.ReduceFramePixelLT)
 			Reduced:=this._ReduceFramePixelCount(Settings.ReduceFramePixelLT), Console.Send("Setting " Reduced " frames to 1x1 Trans pixel because PixelCount<=" Settings.ReduceFramePixelLT "`r`n","I")
-		If (Settings.AlphaCutoff>0)
-			this._AlphaCutoff(Settings.AlphaCutoff), Console.Send("Setting pixels with transparency between 1 and " Settings.AlphaCutoff " (inclusive) to TransColor." "`r`n","I")
+		If (Settings.AlphaCutoff!=0)
+			this._AlphaCutoff() ;, Console.Send("Setting pixels with transparency between 1 and " Settings.AlphaCutoff " (inclusive) to TransColor." "`r`n","I")
 		If (Settings.ForceTransColor=1)
 			this._ForceTransColor(), Console.Send("Transparent color set to Green and Palette Entry 0" "`r`n","I")
 		If (Settings.ForceShadowColor!=0)
@@ -2798,17 +2808,59 @@ class CompressBAM extends ProcessBAM{
 			}
 		Return Location
 	}
-	_AlphaCutoff(Val:=0){
-		Loop, % (this.Stats.CountOfPaletteEntries)
+	_AlphaCutoff(){
+		TmpArr:=StrSplit(Settings.AlphaCutoff,","," `t"), LowBound:=(TmpArr.HasKey(1) AND TmpArr[1]>=0?TmpArr[1]:0), HighBound:=(TmpArr.HasKey(2) AND TmpArr[2]<=255?TmpArr[2]:255)
+		If (LowBound>0)
 			{
-			Index:=A_Index-1
-			If (this.Palette[Index,"AA"]<>0) AND (this.Palette[Index,"AA"]<=Val) ; 1st condition might should be this.Stats.PaletteHasAlpha=1
+			Console.Send("Searching for pixels with transparency between 1 and " LowBound " (inclusive) to set to TransColor." "`r`n","I")
+			LUT:={}, LUT.SetCapacity(256)
+			Loop, % (this.Stats.CountOfPaletteEntries)
 				{
-				this.Palette[Index,"RR"]:=this.Palette[this.Stats.TransColorIndex,"RR"]
-				this.Palette[Index,"GG"]:=this.Palette[this.Stats.TransColorIndex,"GG"]
-				this.Palette[Index,"BB"]:=this.Palette[this.Stats.TransColorIndex,"BB"]
-				this.Palette[Index,"AA"]:=this.Palette[this.Stats.TransColorIndex,"AA"]
+				Index:=A_Index-1
+				If (this.Palette[Index,"AA"]<>0) AND (this.Palette[Index,"AA"]<=LowBound)
+					LUT[Index]:=1
 				}
+			If LUT.Count()
+				{
+				Loop, % this.Stats.CountOfFrames
+					{
+					Index:=A_Index-1
+					Loop, % this.FrameData[Index].Count() ;MaxIndex()+1
+						{
+						Index2:=A_Index-1
+						If LUT.HasKey(this.FrameData[Index,Index2])
+							this.FrameData[Index,Index2]:=this.Stats.TransColorIndex
+						}
+					}
+				Console.Send("Setting " LUT.Count() " colors with transparency between 1 and " LowBound " (inclusive) to TransColor." "`r`n","I")
+				}
+			Else
+				Console.Send("No pixels with transparency between 1 and " LowBound " (inclusive) were found." "`r`n","I")
+			;~ Loop, % (this.Stats.CountOfPaletteEntries)
+				;~ {
+				;~ Index:=A_Index-1
+				;~ If (this.Palette[Index,"AA"]<>0) AND (this.Palette[Index,"AA"]<=LowBound) ; 1st condition might should be this.Stats.PaletteHasAlpha=1
+					;~ {
+					;~ this.Palette[Index,"RR"]:=this.Palette[this.Stats.TransColorIndex,"RR"]
+					;~ this.Palette[Index,"GG"]:=this.Palette[this.Stats.TransColorIndex,"GG"]
+					;~ this.Palette[Index,"BB"]:=this.Palette[this.Stats.TransColorIndex,"BB"]
+					;~ this.Palette[Index,"AA"]:=this.Palette[this.Stats.TransColorIndex,"AA"]
+					;~ }
+				;~ }
+			}
+		If (HighBound<255)
+			{
+			Count:=0
+			Console.Send("Searching for palette colors with transparency between " HighBound " and 254 (inclusive) to make fully opaque." "`r`n","I")
+			For k,v in this.Palette
+				{
+				If v["AA"]>=HighBound
+					v["AA"]:=0, Count+=1
+				}
+			If Count
+				Console.Send("Setting " Count " colors with transparency between " HighBound " and 254 (inclusive) fully opaque." "`r`n","I")
+			Else
+				Console.Send("No colors with transparency between  " HighBound " and 254 (inclusive) were found." "`r`n","I")
 			}
 		this.Stats["PaletteHasAlpha"]:=0
 		Loop, % this.Stats.CountOfPaletteEntries
@@ -4847,7 +4899,7 @@ SetSettings(){
 	Settings.SearchTransColor:=1				; BG1/PST TransColor might not be palette entry 0 (so you should search)
 	Settings.ForceTransColor:=0
 	Settings.ForceShadowColor:=0				; -1=Ensure No Shadow color | 0=None | 1=Force | 2=Move | 3=Insert (move will insert if fails) | 4=Search
-	Settings.AlphaCutoff:=0 ;10
+	Settings.AlphaCutoff:=0 ; 10,255			; 0 to disable or "LowBound,HighBound"
 	Settings.AllowShortPalette:=0
 	
 	Settings.TrimFrameData:=0

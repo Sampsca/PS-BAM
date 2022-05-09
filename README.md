@@ -117,7 +117,7 @@ Here is a full list of all possible settings, and their default values:
 --SearchTransColor 1		; BG1/PST TransColor might not be palette entry 0 (so you should search)
 --ForceTransColor 0
 --ForceShadowColor 0		; -1=Ensure No Shadow color | 0=None | 1=Force | 2=Move | 3=Insert (move will insert if fails) | 4=Search
---AlphaCutoff 0 ;10
+--AlphaCutoff 0 ; 10,255			; 0 to disable or "LowBound,HighBound"
 --AllowShortPalette 0
 
 --TrimFrameData 0

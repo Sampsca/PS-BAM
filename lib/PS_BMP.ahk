@@ -29,8 +29,8 @@ hBMP:=New PSBMP()
 ;~ hBMP.LoadBMPFromFile("C:\Programs\AutoHotkey Scripts\PS_BMP\EE Examples\1CHELMX6.bmp")
 hBMP.LoadBMPFromFile("C:\Programs\AutoHotkey Scripts\PS_Quantization\Arches_12.5.bmp")
 ;~ hBMP.LoadBMPFromFile("C:\Programs\AutoHotkey Scripts\PS_BMP\Test32.bmp")
-hBMP.SetColorTransparency(0,255,0,0) ; 100% Transparency for TransColor
-hBMP.SetColorTransparency(0,0,0,128) ; 50% Transparency for Shadow Color
+hBMP.SetColorTransparency(0,255,0,"",0) ; 100% Transparency for TransColor
+hBMP.SetColorTransparency(0,0,0,"",128) ; 50% Transparency for Shadow Color
 hBMP.SaveBMPToFile(A_ScriptDir "\Test.bmp",24,3)
 
 
@@ -112,7 +112,7 @@ class PSBMP{
 			this.BitmapHeader.Compression:=0
 			this.BitmapHeader.Width:=Width
 			this.BitmapHeader.Height:=Height
-		this.Palette:={}
+		this.Palette:=""
 		If (IsObject(PalObj))
 			{
 			Clone:=this._ObjFullyClone(PalObj)
@@ -120,7 +120,7 @@ class PSBMP{
 				Clone.RemoveAt(Clone.MinIndex()-1,1)
 			this.Palette:=Clone
 			}
-		this.Frame:={}
+		this.Frame:=""
 		If (IsObject(FrameObj))
 			{
 			Clone:=this._ObjFullyClone(FrameObj)
@@ -128,7 +128,7 @@ class PSBMP{
 				Clone.RemoveAt(Clone.MinIndex()-1,1)
 			this.Frame:=Clone
 			}
-		this.FrameUP:={}
+		this.FrameUP:=""
 		If (IsObject(FrameObjUP))
 			{
 			Clone:=this._ObjFullyClone(FrameObjUP)
@@ -150,7 +150,7 @@ class PSBMP{
 	GetFileSize(){
 		Return this.Stats.FileSize
 	}
-	SetColorTransparency(R:=0,G:=255,B:=0,Alpha:=255){
+	SetColorTransparency(R:=0,G:=255,B:=0,A:="",Alpha:=255){
 		If (R="") AND (G="") AND (B="")	; Set Alpha of ALL colors
 			{
 			If IsObject(this.Palette)
@@ -170,7 +170,7 @@ class PSBMP{
 				{
 				For k,v in this.Palette
 					{
-					If (v["RR"]=R) AND (v["GG"]=G) AND (v["BB"]=B)
+					If (v["RR"]=R) AND (v["GG"]=G) AND (v["BB"]=B) AND (A=""?True:v["AA"]=A)
 						v["AA"]:=Alpha
 					}
 				}
@@ -178,7 +178,7 @@ class PSBMP{
 				{
 				For k,v in this.FrameUP
 					{
-					If (v["RR"]=R) AND (v["GG"]=G) AND (v["BB"]=B)
+					If (v["RR"]=R) AND (v["GG"]=G) AND (v["BB"]=B) AND (A=""?True:v["AA"]=A)
 						v["AA"]:=Alpha
 					}
 				}
@@ -218,6 +218,106 @@ class PSBMP{
 				}
 			}
 		}
+	AlphaCutoffEx(AlphaZeroIsTransparent:=1,LowBound:=0,HighBound:=255,TransR:=0,TransG:=255,TransB:=0,TransA:=0,ShadowR:=0,ShadowG:=0,ShadowB:=0,ShadowA:=0){ ; AlphaZeroIsTransparent = 0 | 1 | 2
+		If (AlphaZeroIsTransparent=2) ; Unsure, will need to investigate and make a guess
+			{
+			ColorStats:=this.GetColorStatistics(TransR,TransG,TransB,ShadowR,ShadowG,ShadowB)
+			If (ColorStats.ColorCount=0) OR (ColorStats.AlphaAll255=1)
+				{
+				AlphaZeroIsTransparent:=1
+				Return ; Nothing to change
+				}
+			Else If  (ColorStats.AlphaAll255ExceptTrans=1) OR (ColorStats.AlphaAllNon0=1)
+				AlphaZeroIsTransparent:=1
+			Else If (ColorStats.AlphaAll0=1)
+				{
+				AlphaZeroIsTransparent:=0
+				Return ; Nothing to change
+				}
+			Else If IsObject(this.Palette) AND IsObject(this.Frame) ; comes from reading BMP8v3
+				AlphaZeroIsTransparent:=0 ; Play it safe
+			Else
+				AlphaZeroIsTransparent:=1
+			}
+		If IsObject(this.FrameUP)
+			{
+			For k,v in this.FrameUP
+				{
+				A:=v["AA"]
+				If (A=0) AND (AlphaZeroIsTransparent=0) ; Alpha 0 is opaque
+					Continue
+				If (A<=LowBound)
+					v["RR"]:=TransR, v["GG"]:=TransG, v["BB"]:=TransB, v["AA"]:=TransA
+				If (A>=HighBound)
+					v["AA"]:=255
+				}
+			}
+		If IsObject(this.Palette)
+			{
+			TransIdx:=-1, Remap:=[], Remap.SetCapacity(this.Palette.Count())
+			Loop, % this.Palette.Count()
+				Idx:=A_Index-1, Remap[Idx]:=Idx
+			For k,v in this.Palette
+				{
+				A:=v["AA"]
+				If (v["RR"]=TransR) AND (v["GG"]=TransG) AND (v["BB"]=TransB) AND (A=TransA) AND (TransIdx=-1)
+					TransIdx:=A
+				Else If (A=0) AND (AlphaZeroIsTransparent=0) ; Alpha 0 is opaque
+					Continue
+				Else If (A<=LowBound)
+					{
+					If (TransIdx=-1)
+						v["RR"]:=TransR, v["GG"]:=TransG, v["BB"]:=TransB, v["AA"]=TransA, TransIdx:=A
+					Else
+						Remap[k]:=TransIdx
+					}
+				If (A>=HighBound)
+					v["AA"]:=255
+				}
+			For k,v in this.Frame
+				v:=Remap[v]
+			}
+	}
+	GetColorStatistics(TransR:=0,TransG:=255,TransB:=0,ShadowR:=0,ShadowG:=0,ShadowB:=0){
+		ColorLUT:={}, ColorLUT.SetCapacity(256), ColorCount:=0, AlphaAll0:=AlphaAll255:=AlphaAll255ExceptTrans:=AlphaAllNon0:=1, TransColorAlpha:={}, ShadowColorAlpha:={}
+		For k,v in ((IsObject(this.Palette)&&IsObject(this.Frame))?this.Frame:this.FrameUP)
+			{
+			Key:=(IsObject(this.Frame)?this._FormatHash(R:=this.Palette[v,"RR"],G:=this.Palette[v,"GG"],B:=this.Palette[v,"BB"],A:=this.Palette[v,"AA"]):this._FormatHash(R:=v["RR"],G:=v["GG"],B:=v["BB"],A:=v["AA"]))
+			(ColorLUT.HasKey(Key)?ColorLUT[Key]+=1:ColorLUT[Key]:=1)
+			If (A!=0)
+				AlphaAll0:=0
+			If (A!=255)
+				AlphaAll255:=0
+			If (A=0)
+				AlphaAllNon0:=0
+			If (R=TransR) AND (G=TransG) AND (B=TransB) ; Default Pure Green
+				{
+				TransColorAlpha[TransColorAlpha.Count()]:=A
+				If (A=255)
+					AlphaAll255ExceptTrans:=0
+				}
+			Else If (R=ShadowR) AND (G=ShadowG) AND (B=ShadowB) ; Default Pure Black
+				{
+				ShadowColorAlpha[TransColorAlpha.Count()]:=A
+				If (A!=255)
+					AlphaAll255ExceptTrans:=0
+				}
+			Else If (A!=255)
+				AlphaAll255ExceptTrans:=0
+			}
+		ColorCount:=ColorLUT.Count()
+		;If IsObject(this.Palette)
+			;{
+			;TransColorAlpha:=TransColorAlpha[0]   ; Lowest index in the palette
+			;ShadowColorAlpha:=ShadowColorAlpha[0] ; Lowest index in the palette
+			;}
+		;Else If IsObject(this.FrameUP)
+			;{
+			TransColorAlpha:=this._Mode(TransColorAlpha,2) ; Most frequent value used
+			ShadowColorAlpha:=this._Mode(ShadowColorAlpha,2) ; Most frequent value used
+			;}
+		Return Object("ColorLUT",ColorLUT,"ColorCount",ColorCount,"AlphaAll0",AlphaAll0,"AlphaAll255",AlphaAll255,"AlphaAll255ExceptTrans",AlphaAll255ExceptTrans,"TransColorAlpha",TransColorAlpha,,"AlphaAllNon0",AlphaAllNon0,"ShadowColorAlpha",ShadowColorAlpha)
+	}
 	_ReadBMP(){
 		tic:=this._QPC(1)
 		this._ReadFileHeader()
@@ -250,7 +350,7 @@ class PSBMP{
 		pBitmap:=this.GDIPlus_pBitmapFromBuffer(this.Raw,this.Stats.FileSize,this.GetAddress("Raw"))
 		Width:=this.BitmapHeader.Width:=Gdip_GetImageWidth(pBitmap)
 		Height:=this.BitmapHeader.Height:=Gdip_GetImageHeight(pBitmap)
-		this.Frame:={}, this.FrameUP:={}, this.FrameUP.SetCapacity(Width*Height)
+		this.Frame:="", this.FrameUP:={}, this.FrameUP.SetCapacity(Width*Height)
 		Index:=A:=R:=G:=B:=0
 		Loop, % Abs(Height)
 			{
@@ -377,7 +477,7 @@ class PSBMP{
 		this.DataMem.WriteUInt(0)
 		this.DataMem.WriteInt(0)
 		this.DataMem.WriteInt(0)
-		If !this.Palette.Count() OR !this.Frame.Count()	;!(this.Palette.Length()) OR !(this.Frame.Length())
+		If !IsObject(this.Palette) OR !this.Palette.Count() OR !IsObject(this.Frame) OR !this.Frame.Count()	;!(this.Palette.Length()) OR !(this.Frame.Length())
 			{
 			Console.Send("Quantizing image color depth to 8-bit.  For large numbers of colors this could take a while...`r`n","I")
 			this._QuantizeImage(8)
@@ -759,7 +859,7 @@ class PSBMP{
 		this.DataMem.Seek(this.FileHeader.BitmapOffset,0)
 		this.Stats.OffsetToFrameData:=this.FileHeader.BitmapOffset
 		Width:=this.BitmapHeader.Width, Height:=this.BitmapHeader.Height
-		this.Frame:={}, this.FrameUP:={}, this.FrameUP.SetCapacity(Width*Height)
+		this.Frame:="", this.FrameUP:={}, this.FrameUP.SetCapacity(Width*Height)
 		If !pToken
 			pToken:=Gdip_Startup(), LocalShutDown:=1
 		Else
@@ -806,7 +906,7 @@ class PSBMP{
 	_QuantizeImage(BitDepth){
 		tic:=this._QPC(1)
 		CountOfPaletteEntries:=1<<BitDepth
-		If this.FrameUP.Count()	; If we have un-paletted data
+		If IsObject(this.FrameUP) AND this.FrameUP.Count()	; If we have un-paletted data
 			{
 			Quant:=New PS_Quantization()
 			If (this.Palette[0,"RR"]=0) AND (this.Palette[0,"GG"]=255) AND (this.Palette[0,"BB"]=0) AND (this.Palette[0,"AA"]=0)
@@ -832,7 +932,7 @@ class PSBMP{
 			Quant:=""
 			Console.Send("Image quantized in " (this._QPC(1)-tic) " sec.`r`n","-I")
 			}
-		Else If this.Frame.Count()	; If all we have is paletted data
+		Else If IsObject(this.Frame) AND this.Frame.Count()	; If all we have is paletted data
 			{
 			Quant:=New PS_Quantization()
 			For k,v in this.Frame
@@ -897,7 +997,31 @@ class PSBMP{
 		Else ;If (Justify="L")
 			Return SubStr(String tmp,1,Length)
 	}
-
+	_FormatHash(r:=0,g:=0,b:=0,a:=0){
+		Return "#" ((r&0xFF)<<24)|((g&0xFF)<<16)|((b&0xFF)<<8)|(a&0xFF)
+	}
+	
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;;;      Returns the most frequent value in an array.       ;;;
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;;; If there are multiple values with the same frequency,   ;;;
+	;;;   the one with the lowest index (either alphabetically  ;;;
+	;;;   or numerically depending on the contents of the array ;;;
+	;;;   [numerically having priority]) will be returned.      ;;;
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	_Mode(Array,GuessNumUniqueVals:=1){
+		Local
+		LUT:={}, Count:=0, Mode:="", LUT.SetCapacity(GuessNumUniqueVals) ; Performance can be improved by pre-allocating the number of keys in LUT if you know something about how many unique values to expect
+		For k,v in Array
+			(LUT.HasKey(v)?LUT[v]+=1:LUT[v]:=1)
+		For k,v in LUT
+			{
+			If (v>Count)
+				Count:=v, Mode:=k
+			}
+		Return Mode
+	}
+	
 	;;;;;	Gdip	;;;;;
 	GDIPlus_pBitmapFromBuffer(ByRef Buffer,nSize,BufferAddress:="") {
 	 pStream:=pBitmap:=""
