@@ -1,5 +1,5 @@
 ﻿;
-; AutoHotkey Version: 1.1.33.10
+; AutoHotkey Version: 1.1.34.04
 ; Language:       English
 ; Platform:       Optimized for Windows 10
 ; Author:         Sam.
@@ -17,7 +17,7 @@ OnError("Traceback")
 
 try {
 
-Global PS_Version:="v0.0.0.27a"
+Global PS_Version:="v0.0.0.28a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -3559,6 +3559,10 @@ class ProcessBAM extends DebugBAM{
 			this._Fill()
 		If (Settings.Montage<>"")
 			this._Montage(Input)
+		If (Settings.RemapGradientSet<>"")
+			this._RemapGradient(Settings.RemapGradientSet,1)
+		If (Settings.RemapGradient<>"")
+			this._RemapGradient(Settings.RemapGradient,0)
 		If Settings.ModXOffset
 			this._ModXOffset()
 		If Settings.ModYOffset
@@ -4609,6 +4613,102 @@ class ProcessBAM extends DebugBAM{
 		this._UpdateStats()
 		Console.Send("Montaged Frames in " (QPC(1)-tic) " sec.`r`n","-I")
 	}
+	_RemapGradient(GradientsToSwap,RemapSet:=0){
+		;Colors:=["Grey","Teal","Pink","Yellow","Red","Blue","Green"]
+		Colors2:=["Grey_Teal","Grey_Pink","Grey_Yellow","Grey_Red","Grey_Blue","Grey_Green","Teal_Pink","Teal_Yellow","Teal_Red","Teal_Blue","Teal_Green","Pink_Yellow","Pink_Red","Pink_Blue","Pink_Green","Yellow_Red","Yellow_Blue","Yellow_Green","Red_Blue","Red_Green","Blue_Green"]
+		
+		Trans:=[0]
+		Shadow:=[1]
+		Unused1:=[2]
+		Unused2:=[3]
+		
+		Grey:=[4,5,6,7,8,9,10,11,12,13,14,15]
+		Teal:=[16,17,18,19,20,21,22,23,24,25,26,27]
+		Pink:=[28,29,30,31,32,33,34,35,36,37,38,39]
+		Yellow:=[40,41,42,43,44,45,46,47,48,49,50,51]
+		Red:=[52,53,54,55,56,57,58,59,60,61,62,63]
+		Blue:=[64,65,66,67,68,69,70,71,72,73,74,75]
+		Green:=[76,77,78,79,80,81,82,83,84,85,86,87]
+		
+		Grey_Teal:=[88,89,90,91,92,93,94,95]
+		Grey_Pink:=[96,97,98,99,100,101,102,103]
+		Grey_Yellow:=[104,105,106,107,108,109,110,111]
+		Grey_Red:=[112,113,114,115,116,117,118,119]
+		Grey_Blue:=[120,121,122,123,124,125,126,127]
+		Grey_Green:=[128,129,130,131,132,133,134,135]
+		Teal_Pink:=[136,137,138,139,140,141,142,143]
+		Teal_Yellow:=[144,145,146,147,148,149,150,151]
+		Teal_Red:=[152,153,154,155,156,157,158,159]
+		Teal_Blue:=[160,161,162,163,164,165,166,167]
+		Teal_Green:=[168,169,170,171,172,173,174,175]
+		Pink_Yellow:=[176,177,178,179,180,181,182,183]
+		Pink_Red:=[184,185,186,187,188,189,190,191]
+		Pink_Blue:=[192,193,194,195,196,197,198,199]
+		Pink_Green:=[200,201,202,203,204,205,206,207]
+		Yellow_Red:=[208,209,210,211,212,213,214,215]
+		Yellow_Blue:=[216,217,218,219,220,221,222,223]
+		Yellow_Green:=[224,225,226,227,228,229,230,231]
+		Red_Blue:=[232,233,234,235,236,237,238,239]
+		Red_Green:=[240,241,242,243,244,245,246,247]
+		Blue_Green:=[248,249,250,251,252,253,254,255]
+		
+		Remap:={}, Remap.SetCapacity(256)
+		Loop, 256
+			Remap[Idx:=A_Index-1]:=Idx
+		Loop, Parse, GradientsToSwap, `,`;, %A_Tab%%A_Space%
+			{
+			G:=StrSplit(A_LoopField,"2"," `t")
+			From:=StrReplace(G[1],"Gray","Grey"), To:=StrReplace(G[2],"Gray","Grey")
+			;;; Need to determine primary vs mixed mapping ;;;
+			If ((StrLen(From)<=7) AND (StrLen(To)<=7)) OR ((StrLen(From)>=8) AND (StrLen(To)>=8)) ; Primary2Primary OR Mixed2Mixed
+				{
+				For k,v in %From%
+					Remap[v]:=%To%[k]
+				}
+			Else IF ((StrLen(From)>=8) AND (StrLen(To)<=7)) ; Mixed2Primary
+				{
+				For k,v in %From%
+					Remap[v]:=%To%[k+2]
+				}
+			Else IF ((StrLen(From)<=7) AND (StrLen(To)>=8)) ; Primary2Mixed
+				{
+				;Tmp:={1:3,2:3,3:3,4:4,5:5,6:6,7:7,8:8,9:9,10:10,11:10,12:10}
+				Tmp:={1:3,2:3,3:4,4:4,5:5,6:6,7:7,8:8,9:9,10:9,11:10,12:10}
+				For k,v in %From%
+					Remap[v]:=%To%[Tmp[k]-2]
+				}
+			Else
+				throw Exception("GradientsToSwap '" From "' to '" To "' does not match expected inputs.",,"`n`n" Traceback())
+			If RemapSet ; Also remap corresponding mixed gradients
+				{
+				For k,v in Colors2
+					{
+					If InStr(v,From)
+						{
+						NewTo:=(!InStr(v,To)?StrReplace(v,From,To):v)
+						For k2,v2 in %v%
+							Remap[v2]:=%NewTo%[k2]
+						;If !InStr(v,To) ; Remap non-shared mixed gradients
+						;	{
+						;	NewTo:=StrReplace(v,From,To)
+						;	For k2,v2 in %v%
+						;		Remap[v2]:=%NewTo%[k2]
+						;	}
+						;Else ; Remap mixed gradient btwn From and To to just To
+						;	{
+						;	For k2,v2 in %v%
+						;		Remap[v2]:=%To%[k2+2]
+						;	}
+						}
+					}
+				}
+			}
+		For key,val in this.FrameData
+			{
+			For k2,v2 in val
+				val[k2]:=Remap[v2]
+			}
+	}
 	_ModXOffset(Val:=""){
 		If (Val="")
 			Val:=Settings.ModXOffset
@@ -4934,6 +5034,8 @@ SetSettings(){
 	Settings.Fill:=""					; widthXheight,orientation		Note:  EITHER width or height may be zero, indicating no change.  orientation may be any of:  | NorthWest | TopLeft | NorthEast | TopRight | SouthWest | BottomLeft | SouthEast | BottomRight | North | Top | East | Right | South | Bottom | West | Left |
 	;Settings.UnifyTransFrameAlt		; Not implemented.  Could be used to toggle "this._IsFrameTrans()" in Unify.
 	Settings.Montage:=""				; | Paperdoll | DescriptionIcon | 2x2SplitCreAnim | 2x2External | 2x2ExternalIgnoreOffsets | 1x2External | 2x1External | 1x2ExternalIgnoreOffsets | 2x1ExternalIgnoreOffsets | 3x3SplitCreAnim | [or other (rows x columns) using sequences within same BAM]
+	Settings.RemapGradientSet:=""		; GradientA2GradientB,GradientC2GradientD,etc.  GradientX can be any of the primary gradients: Grey | Teal | Pink | Yellow | Red | Blue | Green .  E.g. "Grey2Teal" or "Pink2Blue,Green2Grey,Grey2Red"
+	Settings.RemapGradient:=""			; GradientA2GradientB,GradientC2GradientD,etc.  GradientX can be any of the primary or mixed gradients: Grey | Teal | Pink | Yellow | Red | Blue | Green | Grey_Teal | Grey_Pink | Grey_Yellow | Grey_Red | Grey_Blue | Grey_Green | Teal_Pink | Teal_Yellow | Teal_Red | Teal_Blue | Teal_Green | Pink_Yellow | Pink_Red | Pink_Blue | Pink_Green | Yellow_Red | Yellow_Blue | Yellow_Green | Red_Blue | Red_Green | Blue_Green .  E.g. "Grey2Teal" or "Pink2Blue,Green2Grey,Grey2Red"
 	Settings.ModXOffset:=0
 	Settings.ModYOffset:=0
 	Settings.SetXOffset:=""

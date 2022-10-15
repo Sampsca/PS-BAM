@@ -64,6 +64,8 @@ Here's an alternate way to set up the Batch file, with all of the possible setti
 --Unify 0 ^
 --Fill "" ^
 --Montage "" ^
+--RemapGradientSet "" ^
+--RemapGradient "" ^
 --ModXOffset 0 ^
 --ModYOffset 0 ^
 --SetXOffset "" ^
@@ -151,6 +153,8 @@ Here is a full list of all possible settings, and their default values:
 --Unify 0			; | 0=Off | 1=On | 2=Square |
 --Fill ""			; widthXheight,orientation		Note:  EITHER width or height may be zero, indicating no change.  orientation may be any of:  | NorthWest | TopLeft | NorthEast | TopRight | SouthWest | BottomLeft | SouthEast | BottomRight | North | Top | East | Right | South | Bottom | West | Left |
 --Montage ""		; | Paperdoll | DescriptionIcon | 2x2SplitCreAnim | 2x2External | 2x2ExternalIgnoreOffsets | 1x2External | 2x1External | 1x2ExternalIgnoreOffsets | 2x1ExternalIgnoreOffsets | 3x3SplitCreAnim | [or other (rows x columns) using sequences within same BAM]
+--RemapGradientSet:=""		; GradientA2GradientB,GradientC2GradientD,etc.  GradientX can be any of the primary gradients: Grey | Teal | Pink | Yellow | Red | Blue | Green .  E.g. "Grey2Teal" or "Pink2Blue,Green2Grey,Grey2Red"
+--RemapGradient:=""			; GradientA2GradientB,GradientC2GradientD,etc.  GradientX can be any of the primary or mixed gradients: Grey | Teal | Pink | Yellow | Red | Blue | Green | Grey_Teal | Grey_Pink | Grey_Yellow | Grey_Red | Grey_Blue | Grey_Green | Teal_Pink | Teal_Yellow | Teal_Red | Teal_Blue | Teal_Green | Pink_Yellow | Pink_Red | Pink_Blue | Pink_Green | Yellow_Red | Yellow_Blue | Yellow_Green | Red_Blue | Red_Green | Blue_Green .  E.g. "Grey2Teal" or "Pink2Blue,Green2Grey,Grey2Red"
 --ModXOffset 0
 --ModYOffset 0
 --SetXOffset ""
