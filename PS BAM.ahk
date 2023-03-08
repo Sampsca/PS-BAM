@@ -17,7 +17,7 @@ OnError("Traceback")
 
 try {
 
-Global PS_Version:="v0.0.0.28a"
+Global PS_Version:="v0.0.0.29a"
 Global PS_Arch:=(A_PtrSize=8?"x64":"x86"), PS_DirArch:=A_ScriptDir "\PS BAM (files)\" PS_Arch
 Global PS_Temp:=RegExReplace(A_Temp,"\\$") "\PS BAM"
 Global PS_TotalBytesSaved:=0
@@ -3803,7 +3803,7 @@ class ProcessBAM extends DebugBAM{
 	_SplitFillSettings(){
 		; widthXheight,orientation
 		FillSettings:={}
-		Arr:=StrSplit(Trim(Settings.Fill),["x",","])
+		Arr:=StrSplit(Trim(Settings.Fill),["x","X",","])
 		FillSettings["width"]:=(Arr[1]?Arr[1]:0)
 		FillSettings["height"]:=(Arr[2]?Arr[2]:0)
 		FillSettings["orientation"]:=(Arr[3]?Arr[3]:"NorthWest")
@@ -3812,7 +3812,7 @@ class ProcessBAM extends DebugBAM{
 			FillSettings["width"]:=0
 		Else If (orientation="East") OR (orientation="Right") OR (orientation="West") OR (orientation="Left")
 			FillSettings["height"]:=0
-		Else If !(orientation="NorthWest") AND !(orientation="TopLeft") AND !(orientation="NorthEast") AND !(orientation="TopRight") AND !(orientation="SouthWest") AND !(orientation="BottomLeft") AND !(orientation="SouthEast") AND !(orientation="BottomRight")
+		Else If !(orientation="NorthWest") AND !(orientation="TopLeft") AND !(orientation="NorthEast") AND !(orientation="TopRight") AND !(orientation="SouthWest") AND !(orientation="BottomLeft") AND !(orientation="SouthEast") AND !(orientation="BottomRight") AND !(orientation="Center") AND !(orientation="Middle") AND !(orientation="ItemIcon")
 			{
 			Console.Send("Orientation passed to --Settings.Fill is an unknown value:  '" orientation "'.`r`n","E")
 			throw Exception("Orientation passed to --Settings.Fill is an unknown value:  '" orientation "'.",,"`n`n" Traceback())
@@ -3828,32 +3828,81 @@ class ProcessBAM extends DebugBAM{
 		fh:=FillSettings["height"]
 		fo:=FillSettings["orientation"]
 		; this.FrameEntries[Index,"CenterX"]+=MaxXCoord, this.FrameEntries[Index,"CenterY"]+=MaxYCoord
-		Loop, % this.Stats.CountOfFrameEntries
+		If (fo="ItemIcon")
 			{
-			Index:=A_Index-1
-			InsertWidth:=(fw-this.FrameEntries[Index,"Width"]), InsertWidth:=(InsertWidth<0?0:InsertWidth)
-			InsertHeight:=(fh-this.FrameEntries[Index,"Height"]), InsertHeight:=(InsertHeight<0?0:InsertHeight)
-			If (fo="NorthWest") OR (fo="TopLeft")
-				InsertTop:=InsertHeight, InsertBottom:=0, InsertLeft:=InsertWidth, InsertRight:=0
-			Else If (fo="NorthEast") OR (fo="TopRight")
-				InsertTop:=InsertHeight, InsertBottom:=0, InsertLeft:=0, InsertRight:=InsertWidth
-			Else If (fo="SouthWest") OR (fo="BottomLeft")
-				InsertTop:=0, InsertBottom:=InsertHeight, InsertLeft:=InsertWidth, InsertRight:=0
-			Else If (fo="SouthEast") OR (fo="BottomRight")
-				InsertTop:=0, InsertBottom:=InsertHeight, InsertLeft:=0, InsertRight:=InsertWidth
-			Else If (fo="North") OR (fo="Top")
-				InsertTop:=InsertHeight, InsertBottom:=0, InsertLeft:=0, InsertRight:=0
-			Else If (fo="South") OR (fo="Bottom")
-				InsertTop:=0, InsertBottom:=InsertHeight, InsertLeft:=0, InsertRight:=0
-			Else If (fo="East") OR (fo="Right")
-				InsertTop:=0, InsertBottom:=0, InsertLeft:=0, InsertRight:=InsertWidth
-			Else If (fo="West") OR (fo="Left")
-				InsertTop:=0, InsertBottom:=0, InsertLeft:=InsertWidth, InsertRight:=0
-			this._InsertRC(Index,InsertTop,InsertBottom,InsertLeft,InsertRight)
-			this.FrameEntries[Index,"Width"]+=InsertWidth ; These only works b/c we zeroed unused dimensions in _SplitFillSettings()
-			this.FrameEntries[Index,"Height"]+=InsertHeight ; ; These only works b/c we zeroed unused dimensions in _SplitFillSettings()
-			this.FrameEntries[Index,"CenterX"]+=(InsertLeft>0?InsertLeft:0)
-			this.FrameEntries[Index,"CenterY"]+=(InsertTop>0?InsertTop:0)
+			Idx:=this.CycleEntries[0,"IndexIntoFLT"]
+			Cnt:=this.CycleEntries[0,"CountOfFrameIndices"]
+			Index:=this.FrameLookupTable[Idx]
+			If (Index<>"")
+				{
+				fw:=64, fh:=64
+				InsertWidth:=(fw-this.FrameEntries[Index,"Width"]), InsertWidth:=(InsertWidth<0?0:InsertWidth)
+				InsertHeight:=(fh-this.FrameEntries[Index,"Height"]), InsertHeight:=(InsertHeight<0?0:InsertHeight)
+				InsertTop:=InsertHeight//2, InsertBottom:=InsertHeight-InsertTop, InsertLeft:=InsertWidth//2, InsertRight:=InsertWidth-InsertLeft
+				this._InsertRC(Index,InsertTop,InsertBottom,InsertLeft,InsertRight)
+				this.FrameEntries[Index,"Width"]+=InsertWidth ; These only works b/c we zeroed unused dimensions in _SplitFillSettings()
+				this.FrameEntries[Index,"Height"]+=InsertHeight ; ; These only works b/c we zeroed unused dimensions in _SplitFillSettings()
+				this.FrameEntries[Index,"CenterX"]+=(InsertLeft>0?InsertLeft:0)
+				this.FrameEntries[Index,"CenterY"]+=(InsertTop>0?InsertTop:0)
+				}
+			Index:=this.FrameLookupTable[Idx+1]
+			If (Cnt>1) AND (Index<>"")
+				{
+				fw:=32, fh:=32
+				InsertWidth:=(fw-this.FrameEntries[Index,"Width"]), InsertWidth:=(InsertWidth<0?0:InsertWidth)
+				InsertHeight:=(fh-this.FrameEntries[Index,"Height"]), InsertHeight:=(InsertHeight<0?0:InsertHeight)
+				InsertTop:=InsertHeight//2, InsertBottom:=InsertHeight-InsertTop, InsertLeft:=InsertWidth//2, InsertRight:=InsertWidth-InsertLeft
+				this._InsertRC(Index,InsertTop,InsertBottom,InsertLeft,InsertRight)
+				this.FrameEntries[Index,"Width"]+=InsertWidth ; These only works b/c we zeroed unused dimensions in _SplitFillSettings()
+				this.FrameEntries[Index,"Height"]+=InsertHeight ; ; These only works b/c we zeroed unused dimensions in _SplitFillSettings()
+				this.FrameEntries[Index,"CenterX"]+=(InsertLeft>0?InsertLeft:0)
+				this.FrameEntries[Index,"CenterY"]+=(InsertTop>0?InsertTop:0)
+				}
+			Index:=this.FrameLookupTable[this.CycleEntries[1,"IndexIntoFLT"]]
+			If (Index<>"")
+				{
+				fw:=32, fh:=32
+				InsertWidth:=(fw-this.FrameEntries[Index,"Width"]), InsertWidth:=(InsertWidth<0?0:InsertWidth)
+				InsertHeight:=(fh-this.FrameEntries[Index,"Height"]), InsertHeight:=(InsertHeight<0?0:InsertHeight)
+				InsertTop:=InsertHeight//2, InsertBottom:=InsertHeight-InsertTop, InsertLeft:=InsertWidth//2, InsertRight:=InsertWidth-InsertLeft
+				this._InsertRC(Index,InsertTop,InsertBottom,InsertLeft,InsertRight)
+				this.FrameEntries[Index,"Width"]+=InsertWidth ; These only works b/c we zeroed unused dimensions in _SplitFillSettings()
+				this.FrameEntries[Index,"Height"]+=InsertHeight ; ; These only works b/c we zeroed unused dimensions in _SplitFillSettings()
+				this.FrameEntries[Index,"CenterX"]+=(InsertLeft>0?InsertLeft:0)
+				this.FrameEntries[Index,"CenterY"]+=(InsertTop>0?InsertTop:0)
+				}
+			}
+		Else
+			{
+			Loop, % this.Stats.CountOfFrameEntries
+				{
+				Index:=A_Index-1
+				InsertWidth:=(fw-this.FrameEntries[Index,"Width"]), InsertWidth:=(InsertWidth<0?0:InsertWidth)
+				InsertHeight:=(fh-this.FrameEntries[Index,"Height"]), InsertHeight:=(InsertHeight<0?0:InsertHeight)
+				If (fo="NorthWest") OR (fo="TopLeft")
+					InsertTop:=InsertHeight, InsertBottom:=0, InsertLeft:=InsertWidth, InsertRight:=0
+				Else If (fo="NorthEast") OR (fo="TopRight")
+					InsertTop:=InsertHeight, InsertBottom:=0, InsertLeft:=0, InsertRight:=InsertWidth
+				Else If (fo="SouthWest") OR (fo="BottomLeft")
+					InsertTop:=0, InsertBottom:=InsertHeight, InsertLeft:=InsertWidth, InsertRight:=0
+				Else If (fo="SouthEast") OR (fo="BottomRight")
+					InsertTop:=0, InsertBottom:=InsertHeight, InsertLeft:=0, InsertRight:=InsertWidth
+				Else If (fo="North") OR (fo="Top")
+					InsertTop:=InsertHeight, InsertBottom:=0, InsertLeft:=0, InsertRight:=0
+				Else If (fo="South") OR (fo="Bottom")
+					InsertTop:=0, InsertBottom:=InsertHeight, InsertLeft:=0, InsertRight:=0
+				Else If (fo="East") OR (fo="Right")
+					InsertTop:=0, InsertBottom:=0, InsertLeft:=0, InsertRight:=InsertWidth
+				Else If (fo="West") OR (fo="Left")
+					InsertTop:=0, InsertBottom:=0, InsertLeft:=InsertWidth, InsertRight:=0
+				Else If (fo="Center") OR (fo="Middle")
+					InsertTop:=InsertHeight//2, InsertBottom:=InsertHeight-InsertTop, InsertLeft:=InsertWidth//2, InsertRight:=InsertWidth-InsertLeft
+				this._InsertRC(Index,InsertTop,InsertBottom,InsertLeft,InsertRight)
+				this.FrameEntries[Index,"Width"]+=InsertWidth ; These only works b/c we zeroed unused dimensions in _SplitFillSettings()
+				this.FrameEntries[Index,"Height"]+=InsertHeight ; ; These only works b/c we zeroed unused dimensions in _SplitFillSettings()
+				this.FrameEntries[Index,"CenterX"]+=(InsertLeft>0?InsertLeft:0)
+				this.FrameEntries[Index,"CenterY"]+=(InsertTop>0?InsertTop:0)
+				}
 			}
 		Console.Send("Filled frames in " (QPC(1)-tic) " sec.`r`n","-I")
 	}
@@ -4617,10 +4666,10 @@ class ProcessBAM extends DebugBAM{
 		;Colors:=["Grey","Teal","Pink","Yellow","Red","Blue","Green"]
 		Colors2:=["Grey_Teal","Grey_Pink","Grey_Yellow","Grey_Red","Grey_Blue","Grey_Green","Teal_Pink","Teal_Yellow","Teal_Red","Teal_Blue","Teal_Green","Pink_Yellow","Pink_Red","Pink_Blue","Pink_Green","Yellow_Red","Yellow_Blue","Yellow_Green","Red_Blue","Red_Green","Blue_Green"]
 		
-		Trans:=[0]
-		Shadow:=[1]
-		Unused1:=[2]
-		Unused2:=[3]
+		Trans:=[0,0,0,0,0,0,0,0,0,0,0,0]
+		Shadow:=[1,1,1,1,1,1,1,1,1,1,1,1]
+		Unused1:=[2,2,2,2,2,2,2,2,2,2,2,2]
+		Unused2:=[3,3,3,3,3,3,3,3,3,3,3,3]
 		
 		Grey:=[4,5,6,7,8,9,10,11,12,13,14,15]
 		Teal:=[16,17,18,19,20,21,22,23,24,25,26,27]
@@ -5031,7 +5080,7 @@ SetSettings(){
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	Settings.BAMProfile:=""				; | ItemIcon | DescriptionIcon | Zero | Paperdoll | SpellIconEE | GroundIcon | DescriptionIconEE | ItemIconPST | GroundIconPST | SpellIcon | Spell |
 	Settings.Unify:=0					; | 0=Off | 1=On | 2=Square |
-	Settings.Fill:=""					; widthXheight,orientation		Note:  EITHER width or height may be zero, indicating no change.  orientation may be any of:  | NorthWest | TopLeft | NorthEast | TopRight | SouthWest | BottomLeft | SouthEast | BottomRight | North | Top | East | Right | South | Bottom | West | Left |
+	Settings.Fill:=""					; widthXheight,orientation		Note:  EITHER width or height may be zero, indicating no change.  orientation may be any of:  | NorthWest | TopLeft | NorthEast | TopRight | SouthWest | BottomLeft | SouthEast | BottomRight | North | Top | East | Right | South | Bottom | West | Left | Center | Middle | ItemIcon
 	;Settings.UnifyTransFrameAlt		; Not implemented.  Could be used to toggle "this._IsFrameTrans()" in Unify.
 	Settings.Montage:=""				; | Paperdoll | DescriptionIcon | 2x2SplitCreAnim | 2x2External | 2x2ExternalIgnoreOffsets | 1x2External | 2x1External | 1x2ExternalIgnoreOffsets | 2x1ExternalIgnoreOffsets | 3x3SplitCreAnim | [or other (rows x columns) using sequences within same BAM]
 	Settings.RemapGradientSet:=""		; GradientA2GradientB,GradientC2GradientD,etc.  GradientX can be any of the primary gradients: Grey | Teal | Pink | Yellow | Red | Blue | Green .  E.g. "Grey2Teal" or "Pink2Blue,Green2Grey,Grey2Red"
